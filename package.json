@@ -1,0 +1,23 @@
+{
+  "name": "unimart-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "UniMart — Campus Marketplace for Sri Lankan Universities",
+  "workspaces": [
+    "client",
+    "server"
+  ],
+  "scripts": {
+    "dev": "concurrently -n \"SERVER,CLIENT\" -c \"blue,green\" \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm --workspace=server run dev",
+    "dev:client": "npm --workspace=client run dev",
+    "lint": "npm --workspace=server run lint && npm --workspace=client run lint",
+    "lint:fix": "npm --workspace=server run lint:fix && npm --workspace=client run lint:fix",
+    "format": "prettier --write \"**/*.{js,jsx,json,md,css}\"",
+    "format:check": "prettier --check \"**/*.{js,jsx,json,md,css}\""
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "prettier": "^3.5.3"
+  }
+}
