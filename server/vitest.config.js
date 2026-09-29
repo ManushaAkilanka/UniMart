@@ -13,8 +13,9 @@ export default defineConfig({
   test: {
     globals: true, // Injects describe, it, expect, beforeAll, afterAll, etc. globally
     environment: 'node',
+    // Allow 5 min for beforeAll hooks (first run downloads the MongoDB binary)
     testTimeout: 60000,
-    hookTimeout: 60000,
+    hookTimeout: 300_000,
     pool: 'forks',
     include: ['src/tests/**/*.test.js'],
   },

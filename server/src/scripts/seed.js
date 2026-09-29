@@ -524,11 +524,7 @@ const LISTINGS_TEMPLATE = [
   },
 ];
 
-async function seed() {
-  console.log('[Seed] Connecting to database…');
-  await mongoose.connect(ENV.MONGO_URI);
-  console.log('[Seed] Database connected.');
-
+export async function seedData() {
   // 1. Seed Categories
   console.log('\n[Seed] 📁 Upserting categories…');
   const categoryMap = new Map();
@@ -613,11 +609,20 @@ async function seed() {
   }
 
   console.log(`\n[Seed] 🎉 Successfully seeded ${count} listings, 6 categories, and 4 users.\n`);
-  await mongoose.disconnect();
-  process.exit(0);
 }
 
-seed().catch((err) => {
-  console.error('[Seed] ❌ Fatal error:', err);
-  process.exit(1);
-});
+const isCLI = process.argv[1] && (process.argv[1].endsWith('seed.js') || process.argv[1].endsWith('seed'));
+if (isCLI) {
+  console.log('[Seed] Connecting to database…');
+  mongoose.connect(ENV.MONGO_URI)
+    .then(async () => {
+      console.log('[Seed] Database connected.');
+      await seedData();
+      await mongoose.disconnect();
+      process.exit(0);
+    })
+    .catch((err) => {
+      console.error('[Seed] ❌ Fatal error:', err);
+      process.exit(1);
+    });
+}

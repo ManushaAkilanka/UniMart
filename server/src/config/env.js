@@ -31,4 +31,12 @@ export const ENV = {
   CLOUDINARY_CLOUD_NAME: process.env.CLOUDINARY_CLOUD_NAME || null,
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || null,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || null,
+
+  // Admin moderation setting (default: active)
+  DEFAULT_LISTING_STATUS:
+    process.env.ADMIN_SETTING_LISTING_STATUS === 'pending' ||
+    process.env.ADMIN_SETTING_REQUIRE_APPROVAL === 'true' ||
+    process.env.REQUIRE_LISTING_APPROVAL === 'true'
+      ? 'pending'
+      : (process.env.ADMIN_SETTING_DEFAULT_STATUS || 'active'),
 };

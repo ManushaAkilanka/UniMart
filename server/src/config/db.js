@@ -1,7 +1,21 @@
 import mongoose from 'mongoose';
 import { ENV } from './env.js';
+import { Category } from '../models/index.js';
+import { seedData } from '../scripts/seed.js';
 
 let mongodInstance = null;
+
+const ensureSeedData = async () => {
+  try {
+    const categoryCount = await Category.countDocuments();
+    if (categoryCount === 0) {
+      console.log('[MongoDB] Empty database detected. Auto-seeding initial data...');
+      await seedData();
+    }
+  } catch (seedErr) {
+    console.warn('[MongoDB] Auto-seed warning:', seedErr.message);
+  }
+};
 
 export const connectDB = async () => {
   try {
@@ -9,6 +23,7 @@ export const connectDB = async () => {
       serverSelectionTimeoutMS: 2500,
     });
     console.log(`[MongoDB] Connected successfully: ${conn.connection.host}`);
+    await ensureSeedData();
     return conn;
   } catch (error) {
     if (ENV.NODE_ENV !== 'production') {
@@ -21,6 +36,7 @@ export const connectDB = async () => {
         const memUri = mongodInstance.getUri();
         const conn = await mongoose.connect(memUri);
         console.log(`[MongoDB] In-memory MongoDB connected successfully at ${memUri}`);
+        await ensureSeedData();
         return conn;
       } catch (memErr) {
         console.error('[MongoDB] Failed to start in-memory database:', memErr.message);

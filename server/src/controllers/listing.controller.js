@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Listing, Category } from '../models/index.js';
 import { deleteFromCloudinary } from '../services/cloudinary.service.js';
+import { ENV } from '../config/env.js';
 
 /**
  * Escapes regex special characters to prevent regex injection attacks.
@@ -211,8 +212,10 @@ export const createListing = async (req, res, next) => {
       campus,
       meetupSpots = [],
       images = [],
-      status = 'active',
+      status,
     } = req.body;
+
+    const resolvedStatus = status || ENV.DEFAULT_LISTING_STATUS || 'active';
 
     // Validate category existence
     let resolvedCategoryId = categoryId;
@@ -248,7 +251,7 @@ export const createListing = async (req, res, next) => {
       campus: campus.trim(),
       meetupSpots,
       images,
-      status,
+      status: resolvedStatus,
       viewCount: 0,
     });
 

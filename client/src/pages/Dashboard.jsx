@@ -40,10 +40,20 @@ export const Dashboard = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-space-sm self-stretch md:self-auto">
+          <div className="flex items-center gap-space-sm self-stretch md:self-auto flex-wrap">
             <Link to="/sell" className="flex-1 md:flex-none">
               <Button variant="primary" size="md" leftIcon="add" className="w-full">
-                Post Campus Listing
+                Post Listing
+              </Button>
+            </Link>
+            <Link to="/my-listings" className="flex-1 md:flex-none">
+              <Button
+                variant="outline"
+                size="md"
+                leftIcon="inventory_2"
+                className="w-full bg-white/10 hover:bg-white/20 text-white border-white/20"
+              >
+                My Listings
               </Button>
             </Link>
             <Button
@@ -166,6 +176,23 @@ export const Dashboard = () => {
                 </span>
                 <span className="font-headline-sm text-headline-sm text-on-surface">
                   Browse Campus Marketplace
+                </span>
+              </div>
+              <span className="material-symbols-outlined text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
+                chevron_right
+              </span>
+            </Link>
+
+            <Link
+              to="/my-listings"
+              className="p-space-sm rounded-lg hover:bg-surface-container transition-colors flex items-center justify-between group border border-outline-variant/20"
+            >
+              <div className="flex items-center gap-space-xs">
+                <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary transition-colors">
+                  inventory_2
+                </span>
+                <span className="font-headline-sm text-headline-sm text-on-surface">
+                  Manage My Listings
                 </span>
               </div>
               <span className="material-symbols-outlined text-on-surface-variant group-hover:translate-x-0.5 transition-transform">

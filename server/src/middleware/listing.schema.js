@@ -120,16 +120,25 @@ export const createListingSchema = z.object({
           }
         }),
       images: z
-        .array(
-          z.object({
-            url: z.string().url('Invalid image URL'),
-            publicId: z.string().min(1, 'publicId is required'),
-          })
-        )
-        .max(6, 'Maximum 6 images allowed')
+        .union([
+          z.array(
+            z.object({
+              url: z.string().url('Invalid image URL'),
+              publicId: z.string().min(1, 'publicId is required'),
+            })
+          ),
+          z.string().transform((val) => {
+            try {
+              const parsed = JSON.parse(val);
+              return Array.isArray(parsed) ? parsed : [];
+            } catch {
+              return [];
+            }
+          }),
+        ])
         .optional()
         .default([]),
-      status: z.enum(['active', 'pending', 'hidden']).default('active'),
+      status: z.enum(['active', 'pending', 'hidden']).optional(),
     })
     .refine(
       (data) => {
@@ -195,13 +204,22 @@ export const updateListingSchema = z.object({
         }
       }),
     images: z
-      .array(
-        z.object({
-          url: z.string().url(),
-          publicId: z.string(),
-        })
-      )
-      .max(6)
+      .union([
+        z.array(
+          z.object({
+            url: z.string().url(),
+            publicId: z.string(),
+          })
+        ),
+        z.string().transform((val) => {
+          try {
+            const parsed = JSON.parse(val);
+            return Array.isArray(parsed) ? parsed : [];
+          } catch {
+            return [];
+          }
+        }),
+      ])
       .optional(),
   }),
 });
