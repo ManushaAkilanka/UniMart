@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { FavoritesProvider } from './context/FavoritesContext';
 import { PageLayout } from './components/layout/PageLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { SignIn } from './pages/SignIn';
@@ -14,6 +15,9 @@ import { ListingDetail } from './pages/ListingDetail';
 import { CreateListing } from './pages/CreateListing';
 import { EditListing } from './pages/EditListing';
 import { MyListings } from './pages/MyListings';
+import { Favorites } from './pages/Favorites';
+import { Profile } from './pages/Profile';
+import { SellerProfile } from './pages/SellerProfile';
 
 const PlaceholderPage = ({ title, description }) => (
   <div className="flex flex-col items-center justify-center text-center py-space-3xl gap-space-md">
@@ -46,139 +50,177 @@ const HomeRedirect = () => {
 export default function App() {
   return (
     <AuthProvider>
-      {/* Pages that need full-bleed layout (no max-w padding wrapper) */}
-      <Routes>
-        {/* Auth pages – no layout chrome */}
-        <Route path="/login" element={<SignIn />} />
-        <Route path="/register" element={<SignUp />} />
-        <Route path="/verify-email" element={<VerifyEmail />} />
+      <FavoritesProvider>
+        {/* Pages that need full-bleed layout (no max-w padding wrapper) */}
+        <Routes>
+          {/* Auth pages – no layout chrome */}
+          <Route path="/login" element={<SignIn />} />
+          <Route path="/register" element={<SignUp />} />
+          <Route path="/verify-email" element={<VerifyEmail />} />
 
-        {/* Full-bleed marketplace pages */}
-        <Route
-          path="/"
-          element={
-            <PageLayout fullWidth>
-              <HomeRedirect />
-            </PageLayout>
-          }
-        />
-        <Route
-          path="/browse"
-          element={
-            <PageLayout fullWidth>
-              <Browse />
-            </PageLayout>
-          }
-        />
-        <Route
-          path="/listings/:id"
-          element={
-            <PageLayout fullWidth>
-              <ListingDetail />
-            </PageLayout>
-          }
-        />
+          {/* Full-bleed marketplace pages */}
+          <Route
+            path="/"
+            element={
+              <PageLayout fullWidth>
+                <HomeRedirect />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/browse"
+            element={
+              <PageLayout fullWidth>
+                <Browse />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/listings/:id"
+            element={
+              <PageLayout fullWidth>
+                <ListingDetail />
+              </PageLayout>
+            }
+          />
 
-        {/* Protected padded pages */}
-        <Route
-          path="/dashboard"
-          element={
-            <PageLayout>
-              <ProtectedRoute>
-                <Dashboard />
-              </ProtectedRoute>
-            </PageLayout>
-          }
-        />
-        {/* Sell / Create Listing */}
-        <Route
-          path="/sell"
-          element={
-            <PageLayout fullWidth>
-              <ProtectedRoute requireVerified={true}>
-                <CreateListing />
-              </ProtectedRoute>
-            </PageLayout>
-          }
-        />
-        <Route
-          path="/listings/create"
-          element={
-            <PageLayout fullWidth>
-              <ProtectedRoute requireVerified={true}>
-                <CreateListing />
-              </ProtectedRoute>
-            </PageLayout>
-          }
-        />
+          {/* Public seller profile page */}
+          <Route
+            path="/sellers/:id"
+            element={
+              <PageLayout fullWidth>
+                <SellerProfile />
+              </PageLayout>
+            }
+          />
 
-        {/* Edit Listing */}
-        <Route
-          path="/listings/:id/edit"
-          element={
-            <PageLayout fullWidth>
-              <ProtectedRoute requireVerified={true}>
-                <EditListing />
-              </ProtectedRoute>
-            </PageLayout>
-          }
-        />
+          {/* Protected padded pages */}
+          <Route
+            path="/dashboard"
+            element={
+              <PageLayout>
+                <ProtectedRoute>
+                  <Dashboard />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
 
-        {/* My Listings */}
-        <Route
-          path="/my-listings"
-          element={
-            <PageLayout>
-              <ProtectedRoute>
-                <MyListings />
-              </ProtectedRoute>
-            </PageLayout>
-          }
-        />
-        <Route
-          path="/messages"
-          element={
-            <PageLayout>
-              <ProtectedRoute>
-                <PlaceholderPage
-                  title="Student Chat & Meetup Messages"
-                  description="Direct peer-to-peer messaging coming soon."
-                />
-              </ProtectedRoute>
-            </PageLayout>
-          }
-        />
+          {/* User Profile */}
+          <Route
+            path="/profile"
+            element={
+              <PageLayout>
+                <ProtectedRoute>
+                  <Profile />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
 
-        {/* Public padded pages */}
-        <Route path="/design-check" element={<PageLayout><DesignCheck /></PageLayout>} />
-        <Route
-          path="/categories"
-          element={
-            <PageLayout>
-              <PlaceholderPage title="Campus Categories" description="Browse by academic faculty, exam courses, and hostel equipment." />
-            </PageLayout>
-          }
-        />
-        <Route
-          path="/wanted"
-          element={
-            <PageLayout>
-              <PlaceholderPage title="Student Wanted Board" description="Peer request board for syllabus books, calculators, and exam materials." />
-            </PageLayout>
-          }
-        />
-        <Route
-          path="/free"
-          element={
-            <PageLayout fullWidth>
-              <Browse />
-            </PageLayout>
-          }
-        />
+          {/* Saved / Favorites */}
+          <Route
+            path="/saved"
+            element={
+              <PageLayout fullWidth>
+                <ProtectedRoute>
+                  <Favorites />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
 
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/browse" replace />} />
-      </Routes>
+          {/* Sell / Create Listing */}
+          <Route
+            path="/sell"
+            element={
+              <PageLayout fullWidth>
+                <ProtectedRoute requireVerified={true}>
+                  <CreateListing />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/listings/create"
+            element={
+              <PageLayout fullWidth>
+                <ProtectedRoute requireVerified={true}>
+                  <CreateListing />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
+
+          {/* Edit Listing */}
+          <Route
+            path="/listings/:id/edit"
+            element={
+              <PageLayout fullWidth>
+                <ProtectedRoute requireVerified={true}>
+                  <EditListing />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
+
+          {/* My Listings */}
+          <Route
+            path="/my-listings"
+            element={
+              <PageLayout>
+                <ProtectedRoute>
+                  <MyListings />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/messages"
+            element={
+              <PageLayout>
+                <ProtectedRoute>
+                  <PlaceholderPage
+                    title="Student Chat & Meetup Messages"
+                    description="Direct peer-to-peer messaging coming soon."
+                  />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
+
+          {/* Public padded pages */}
+          <Route path="/design-check" element={<PageLayout><DesignCheck /></PageLayout>} />
+          <Route
+            path="/categories"
+            element={
+              <PageLayout>
+                <PlaceholderPage title="Campus Categories" description="Browse by academic faculty, exam courses, and hostel equipment." />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/wanted"
+            element={
+              <PageLayout>
+                <PlaceholderPage title="Student Wanted Board" description="Peer request board for syllabus books, calculators, and exam materials." />
+              </PageLayout>
+            }
+          />
+          <Route
+            path="/free"
+            element={
+              <PageLayout fullWidth>
+                <Browse />
+              </PageLayout>
+            }
+          />
+
+          {/* Catch-all */}
+          <Route path="*" element={<Navigate to="/browse" replace />} />
+        </Routes>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }
+

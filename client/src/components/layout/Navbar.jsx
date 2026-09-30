@@ -5,11 +5,13 @@ import { Avatar } from '../ui/Avatar';
 import { cn } from '../../utils/cn';
 
 import { useAuth } from '../../context/AuthContext';
+import { useFavorites } from '../../context/FavoritesContext';
 
 export const Navbar = ({ onOpenCampusModal }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user, isAuthenticated } = useAuth();
+  const { count: favCount } = useFavorites();
 
   const navLinks = [
     { label: 'Browse', path: '/browse' },
@@ -105,9 +107,11 @@ export const Navbar = ({ onOpenCampusModal }) => {
                   className="relative p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
                 >
                   <span className="material-symbols-outlined text-xl leading-none">favorite</span>
-                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-surface-container-highest text-on-surface font-label-sm text-[10px] font-bold">
-                    4
-                  </span>
+                  {favCount > 0 && (
+                    <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-error text-on-error font-label-sm text-[10px] font-bold">
+                      {favCount > 99 ? '99+' : favCount}
+                    </span>
+                  )}
                 </Link>
 
                 {/* Messages */}
@@ -132,8 +136,8 @@ export const Navbar = ({ onOpenCampusModal }) => {
                 </button>
               </div>
 
-              {/* User Profile Avatar linking to Dashboard */}
-              <Link to="/dashboard" className="ml-1 shrink-0" aria-label="Student Dashboard">
+              {/* User Profile Avatar linking to Profile page */}
+              <Link to="/profile" className="ml-1 shrink-0" aria-label="My Profile">
                 <Avatar
                   name={user?.fullName || 'Student'}
                   size="md"
@@ -190,6 +194,47 @@ export const Navbar = ({ onOpenCampusModal }) => {
                 {link.label}
               </Link>
             ))}
+
+            {isAuthenticated ? (
+              <>
+                <Link
+                  to="/saved"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center justify-between px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="material-symbols-outlined text-xl text-error">favorite</span>
+                    <span>Saved Items</span>
+                  </div>
+                  {favCount > 0 && (
+                    <span className="flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-error text-on-error font-label-sm text-[11px] font-bold">
+                      {favCount}
+                    </span>
+                  )}
+                </Link>
+                <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl text-secondary">person</span>
+                  <span>My Profile</span>
+                </Link>
+              </>
+            ) : (
+              <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/20">
+                <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex-1">
+                  <Button variant="outline" size="sm" className="w-full">
+                    Sign In
+                  </Button>
+                </Link>
+                <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="flex-1">
+                  <Button variant="secondary" size="sm" className="w-full">
+                    Register
+                  </Button>
+                </Link>
+              </div>
+            )}
           </div>
 
           <Link to="/sell" onClick={() => setMobileMenuOpen(false)} className="w-full">

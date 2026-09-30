@@ -13,11 +13,16 @@
  *  - GET /api/listings/mine (authenticated user's listings)
  */
 
-import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vitest';
 import request from 'supertest';
 import app from '../app.js';
 import { setupTestDB, teardownTestDB, clearCollections } from './helpers/testDB.js';
 import { User, Category, Listing } from '../models/index.js';
+
+// Mock the email service so no real emails are sent during tests
+vi.mock('../services/email.service.js', () => ({
+  sendVerificationEmail: vi.fn().mockResolvedValue({ messageId: 'test-123' }),
+}));
 
 // ── Test Fixtures ─────────────────────────────────────────────────────────────
 const userAData = {

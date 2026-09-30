@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { getListingById } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
+import { useFavorites } from '../context/FavoritesContext';
 import { cn } from '../utils/cn';
 
 const CONDITION_LABELS = {
@@ -71,13 +72,14 @@ export const ListingDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
+  const { isFavorited, toggle } = useFavorites();
 
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [toggling, setToggling] = useState(false);
   const [copied, setCopied] = useState(false);
   const [reportVisible, setReportVisible] = useState(false);
 
@@ -118,12 +120,17 @@ export const ListingDetail = () => {
     navigate('/messages');
   };
 
-  const handleSave = () => {
+  const saved = listing ? isFavorited(listing._id) : false;
+
+  const handleSave = async () => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    setSaved((s) => !s);
+    if (toggling || !listing) return;
+    setToggling(true);
+    try { await toggle(listing._id); } catch { /**/ }
+    finally { setToggling(false); }
   };
 
   if (loading) {
@@ -495,15 +502,16 @@ export const ListingDetail = () => {
                     <div className="flex gap-space-sm">
                       <button
                         onClick={handleSave}
+                        disabled={toggling}
                         type="button"
                         className={cn(
-                          'flex-1 h-11 rounded-lg border font-headline-sm text-headline-sm flex items-center justify-center gap-1.5 transition-all',
+                          'flex-1 h-11 rounded-lg border font-headline-sm text-headline-sm flex items-center justify-center gap-1.5 transition-all disabled:opacity-60',
                           saved
                             ? 'bg-error/10 border-error/30 text-error'
                             : 'border-outline-variant/30 text-on-surface hover:bg-surface-container'
                         )}
                       >
-                        <span className="material-symbols-outlined text-lg">
+                        <span className={cn('material-symbols-outlined text-lg', toggling && 'animate-pulse')}>
                           {saved ? 'favorite' : 'favorite_border'}
                         </span>
                         {saved ? 'Saved' : 'Save'}
@@ -553,7 +561,7 @@ export const ListingDetail = () => {
                       <span className="font-headline-sm text-headline-sm text-on-surface font-semibold truncate">
                         {sellerName}
                       </span>
-                      {sellerEmail && (
+                      {sellerDomain && (
                         <span className="font-body-sm text-body-sm text-on-surface-variant truncate">
                           @{sellerDomain}
                         </span>
@@ -565,6 +573,17 @@ export const ListingDetail = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* View seller profile link */}
+                  {sellerId?._id && (
+                    <Link
+                      to={`/sellers/${sellerId._id}`}
+                      className="inline-flex items-center gap-1.5 text-secondary font-label-md text-[13px] font-semibold hover:underline transition-colors"
+                    >
+                      <span className="material-symbols-outlined text-sm">open_in_new</span>
+                      View seller profile
+                    </Link>
+                  )}
 
                   {sellerVerified && (
                     <div className="flex items-start gap-2 p-space-sm rounded-lg bg-secondary-container/20 border border-secondary/20">

@@ -8,7 +8,7 @@
     "start": "node src/server.js",
     "dev": "nodemon src/server.js",
     "seed": "node src/scripts/seed.js",
-    "test": "vitest run",
+    "test": "vitest run --no-file-parallelism",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "lint": "eslint .",
@@ -43,6 +43,8 @@
   "vitest": {
     "environment": "node",
     "testTimeout": 30000,
+    "hookTimeout": 360000,
+    "fileParallelism": false,
     "poolOptions": {
       "forks": {
         "singleFork": true
