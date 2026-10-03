@@ -6,3 +6,5 @@ export { default as Conversation } from './Conversation.model.js';
 export { default as Message } from './Message.model.js';
 export { default as Report } from './Report.model.js';
 export { default as AuditLog } from './AuditLog.model.js';
+export { default as Notification } from './Notification.model.js';
+

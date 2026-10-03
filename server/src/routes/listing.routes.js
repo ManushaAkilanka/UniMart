@@ -44,6 +44,12 @@ router.patch(
   listingController.updateListingStatus
 );
 
+// POST /api/listings/:id/claim (Claim a free listing)
+router.post('/:id/claim', requireAuth, listingController.claimListing);
+
+// POST /api/listings/:id/release-claim (Owner releases an existing claim)
+router.post('/:id/release-claim', requireAuth, listingController.releaseClaim);
+
 // PATCH /api/listings/:id (Update listing details)
 router.patch(
   '/:id',

@@ -82,3 +82,44 @@ export async function sendVerificationEmail(to, code) {
 
   return info;
 }
+
+/**
+ * Send a digest notification email for high-value events
+ * (listing_sold and report_resolved). Not used for message notifications.
+ *
+ * @param {object} opts
+ * @param {string} opts.to     - Recipient email
+ * @param {string} opts.title  - Email subject / heading
+ * @param {string} opts.body   - One-line description
+ * @param {string} [opts.linkTo] - Optional deep-link (relative URL)
+ */
+export async function sendNotificationEmail({ to, title, body, linkTo }) {
+  const transporter = await getTransporter();
+  const actionUrl = linkTo
+    ? `${process.env.CLIENT_URL || 'http://localhost:5173'}${linkTo}`
+    : null;
+
+  const info = await transporter.sendMail({
+    from: ENV.EMAIL_FROM,
+    to,
+    subject: `UniMart: ${title}`,
+    text: `${title}\n\n${body}${actionUrl ? `\n\nView it here: ${actionUrl}` : ''}`,
+    html: `
+      <div style="font-family:'Segoe UI',Arial,sans-serif;max-width:520px;margin:0 auto;padding:32px;background:#f8fafc;border-radius:12px;">
+        <h2 style="color:#1e293b;font-size:20px;margin-bottom:8px;">${title}</h2>
+        <p style="color:#475569;margin-bottom:20px;">${body}</p>
+        ${actionUrl ? `<a href="${actionUrl}" style="display:inline-block;padding:10px 24px;background:#10b981;color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">View on UniMart</a>` : ''}
+        <p style="color:#94a3b8;font-size:12px;margin-top:24px;">You received this because you have an account on UniMart.</p>
+      </div>
+    `,
+  });
+
+  if (ENV.NODE_ENV !== 'production') {
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.log(`[Mailer] ✉️  Notification email preview: ${previewUrl}`);
+    }
+  }
+
+  return info;
+}

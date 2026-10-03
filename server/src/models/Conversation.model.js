@@ -9,6 +9,16 @@ const conversationSchema = new Schema(
       ref: 'Listing',
       required: true,
     },
+    buyerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
+    sellerId: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+    },
     participants: [
       {
         type: Schema.Types.ObjectId,
@@ -36,9 +46,9 @@ const conversationSchema = new Schema(
 );
 
 // Indexes
+conversationSchema.index({ buyerId: 1, listingId: 1 }, { unique: true });
 conversationSchema.index({ participants: 1, lastMessageAt: -1 });
 conversationSchema.index({ listingId: 1 });
-conversationSchema.index({ participants: 1, listingId: 1 }, { unique: true });
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 

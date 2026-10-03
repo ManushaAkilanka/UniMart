@@ -22,6 +22,13 @@ export const ENV = {
   LOGIN_RATE_LIMIT_WINDOW_MINUTES: Number(process.env.LOGIN_RATE_LIMIT_WINDOW_MINUTES) || 15,
   LOGIN_RATE_LIMIT_MAX: Number(process.env.LOGIN_RATE_LIMIT_MAX) || 10,
 
+  // Google OAuth
+  GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || 'mock-google-client-id',
+  GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || 'mock-google-client-secret',
+  GOOGLE_CALLBACK_URL:
+    process.env.GOOGLE_CALLBACK_URL ||
+    `${process.env.API_URL || 'http://localhost:5000'}/api/auth/google/callback`,
+
   // Admin seed
   ADMIN_EMAIL: process.env.ADMIN_EMAIL || 'admin@cmb.ac.lk',
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || 'Admin@UniMart2024!',
@@ -39,4 +46,7 @@ export const ENV = {
     process.env.REQUIRE_LISTING_APPROVAL === 'true'
       ? 'pending'
       : (process.env.ADMIN_SETTING_DEFAULT_STATUS || 'active'),
+
+  // Notification email digest — set to 'false' to disable emails for listing_sold / report_resolved
+  NOTIFICATIONS_EMAIL_ENABLED: process.env.NOTIFICATIONS_EMAIL_ENABLED !== 'false',
 };

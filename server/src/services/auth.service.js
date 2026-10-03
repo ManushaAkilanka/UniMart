@@ -25,7 +25,7 @@ function generateOTP() {
 /**
  * Sign a JWT for a given user ID.
  */
-function signToken(userId) {
+export function signToken(userId) {
   return jwt.sign({ sub: userId.toString() }, ENV.JWT_SECRET, {
     expiresIn: ENV.JWT_EXPIRES_IN,
   });
@@ -199,4 +199,95 @@ export async function getCurrentUser(userId) {
     throw err;
   }
   return user.toJSON();
+}
+
+// ── Google OAuth Handler ──────────────────────────────────────────────────────
+
+/**
+ * Handle Google Workspace user sign-in / registration:
+ * - Enforces .ac.lk email domain requirement
+ * - If user exists, links googleId (if not linked) and ensures isVerified=true
+ * - If user is new, creates verified student account skipping OTP
+ * - Blocks suspended users
+ * - Returns user JSON and signed JWT token
+ *
+ * @param {{ googleId: string, email: string, fullName?: string, avatarUrl?: string }} params
+ * @returns {{ user: object, token: string }}
+ */
+export async function handleGoogleUser({ googleId, email, fullName, avatarUrl }) {
+  if (!email) {
+    const err = new Error('No email address provided by Google account.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  // 1. Enforce .ac.lk university email domain rule
+  if (!UNIVERSITY_EMAIL_REGEX.test(normalizedEmail)) {
+    const err = new Error(
+      'Only verified university email addresses (@*.ac.lk) are accepted. Please use your institutional Google account.'
+    );
+    err.statusCode = 422;
+    throw err;
+  }
+
+  // 2. Check for existing user by googleId or email
+  let user = await User.findOne({
+    $or: [{ googleId }, { email: normalizedEmail }],
+  });
+
+  if (user) {
+    // 3. Block suspended users
+    if (user.isSuspended) {
+      const err = new Error(
+        `Your account has been suspended. ${
+          user.suspendedReason ? 'Reason: ' + user.suspendedReason : 'Please contact support.'
+        }`
+      );
+      err.statusCode = 403;
+      throw err;
+    }
+
+    // Link googleId if not yet linked
+    if (!user.googleId && googleId) {
+      user.googleId = googleId;
+    }
+
+    // Since Google verified the email, ensure account is verified (skips OTP)
+    if (!user.isVerified) {
+      user.isVerified = true;
+      user.emailVerificationCode = undefined;
+      user.emailVerificationExpiry = undefined;
+    }
+
+    // Populate avatarUrl from Google if user has none
+    if (!user.avatarUrl && avatarUrl) {
+      user.avatarUrl = avatarUrl;
+    }
+
+    await user.save();
+  } else {
+    // 4. New user: determine campus from institutional email domain
+    let campus = null;
+    if (normalizedEmail.includes('cmb.ac.lk')) campus = 'University of Colombo';
+    else if (normalizedEmail.includes('mrt.ac.lk')) campus = 'University of Moratuwa';
+    else if (normalizedEmail.includes('pdn.ac.lk')) campus = 'University of Peradeniya';
+    else if (normalizedEmail.includes('sjp.ac.lk')) campus = 'University of Sri Jayewardenepura';
+    else if (normalizedEmail.includes('kln.ac.lk')) campus = 'University of Kelaniya';
+    else if (normalizedEmail.includes('ruh.ac.lk')) campus = 'University of Ruhuna';
+    else if (normalizedEmail.includes('jfn.ac.lk')) campus = 'University of Jaffna';
+
+    user = await User.create({
+      fullName: fullName?.trim() || normalizedEmail.split('@')[0],
+      email: normalizedEmail,
+      googleId: googleId || null,
+      isVerified: true, // Google already verified email, skip 6-digit OTP step!
+      avatarUrl: avatarUrl || null,
+      campus,
+    });
+  }
+
+  const token = signToken(user._id);
+  return { user: user.toJSON(), token };
 }

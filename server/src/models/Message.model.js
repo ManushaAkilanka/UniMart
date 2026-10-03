@@ -18,12 +18,24 @@ const messageSchema = new Schema(
       type: String,
       required: [true, 'Message body is required'],
       trim: true,
-      maxlength: [2000, 'Message cannot exceed 2000 characters'],
+      maxlength: [1000, 'Message cannot exceed 1000 characters'],
     },
     messageType: {
       type: String,
-      enum: ['text', 'image', 'system'],
+      enum: ['text', 'image', 'system', 'meetup_proposal'],
       default: 'text',
+    },
+    proposalDetails: {
+      location: { type: String, trim: true, default: null },
+      locationNotes: { type: String, trim: true, default: null },
+      meetupTime: { type: String, trim: true, default: null },
+      timeNotes: { type: String, trim: true, default: null },
+      amount: { type: Number, default: null },
+      status: {
+        type: String,
+        enum: ['proposed', 'accepted', 'declined'],
+        default: 'proposed',
+      },
     },
     isRead: {
       type: Boolean,

@@ -93,6 +93,9 @@ export const createListingSchema = z.object({
         .default(0),
       priceMode: z.enum(['fixed', 'negotiable']).default('fixed'),
       currency: z.literal('LKR').default('LKR'),
+      budgetMin: z.coerce.number().min(0).optional(),
+      budgetMax: z.coerce.number().min(0).optional(),
+      urgency: z.enum(['urgent', 'this-week', 'flexible']).optional().default('flexible'),
       condition: z
         .enum(['new', 'like-new', 'used-good', 'used-fair'], {
           errorMap: () => ({ message: 'Invalid condition' }),
@@ -154,7 +157,7 @@ export const createListingSchema = z.object({
     )
     .refine(
       (data) => {
-        if (data.listingType !== 'wanted') {
+        if (data.listingType !== 'wanted' && data.listingType !== 'free') {
           return Boolean(data.condition);
         }
         return true;
@@ -185,6 +188,9 @@ export const updateListingSchema = z.object({
     listingType: z.enum(['sale', 'free', 'rent', 'exchange', 'wanted']).optional(),
     price: z.coerce.number().min(0).optional(),
     priceMode: z.enum(['fixed', 'negotiable']).optional(),
+    budgetMin: z.coerce.number().min(0).optional(),
+    budgetMax: z.coerce.number().min(0).optional(),
+    urgency: z.enum(['urgent', 'this-week', 'flexible']).optional(),
     condition: z.enum(['new', 'like-new', 'used-good', 'used-fair']).optional(),
     campus: z.string().trim().min(2).max(120).optional(),
     meetupSpots: z
@@ -231,10 +237,10 @@ export const updateListingStatusSchema = z.object({
   }),
   body: z.object({
     status: z
-      .enum(['active', 'sold', 'hidden', 'pending'], {
+      .enum(['active', 'sold', 'fulfilled', 'claimed', 'hidden', 'pending'], {
         errorMap: (issue, ctx) =>
           issue.code === 'invalid_enum_value'
-            ? { message: 'Status must be active, sold, hidden, or pending' }
+            ? { message: 'Status must be active, sold, fulfilled, claimed, hidden, or pending' }
             : { message: ctx.defaultError },
       })
       .refine((val) => val !== undefined, { message: 'Status is required' }),

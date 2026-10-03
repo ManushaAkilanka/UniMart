@@ -316,3 +316,199 @@ describe('requireRole middleware', () => {
     expect(['moderator', 'admin']).not.toContain(meRes.body.data.user.role);
   });
 });
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Google Workspace OAuth 2.0 Tests
+// ─────────────────────────────────────────────────────────────────────────────
+describe('Google Workspace OAuth 2.0 Sign-In Flow', () => {
+  it('✅ initiates Google OAuth redirect with proper client_id, scope, and state', async () => {
+    const res = await request(app).get('/api/auth/google');
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toMatch(/^https:\/\/accounts\.google\.com\/o\/oauth2\/v2\/auth/);
+    expect(res.headers.location).toContain('client_id=');
+    expect(res.headers.location).toContain('response_type=code');
+    expect(res.headers.location).toContain('scope=openid+email+profile');
+    expect(res.headers['set-cookie']).toBeDefined();
+  });
+
+  describe('OAuth Callback (GET /api/auth/google/callback)', () => {
+    let mockProfile = null;
+
+    beforeEach(() => {
+      vi.spyOn(globalThis, 'fetch').mockImplementation(async (url) => {
+        const urlStr = url.toString();
+        if (urlStr.includes('oauth2.googleapis.com/token')) {
+          return {
+            ok: true,
+            json: async () => ({ access_token: 'fake-google-access-token' }),
+          };
+        }
+        if (urlStr.includes('userinfo')) {
+          return {
+            ok: true,
+            json: async () => mockProfile,
+          };
+        }
+        return { ok: false, status: 404, json: async () => ({}) };
+      });
+    });
+
+    afterEach(() => {
+      vi.restoreAllMocks();
+    });
+
+    it('❌ rejects a non-.ac.lk Google account with a clear error message redirected to login', async () => {
+      mockProfile = {
+        sub: 'google_unauth_123',
+        email: 'regularstudent@gmail.com',
+        name: 'Regular Gmail User',
+        picture: 'https://lh3.googleusercontent.com/test.jpg',
+      };
+
+      const res = await request(app).get('/api/auth/google/callback?code=mock_valid_code');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('/login?error=');
+      const decodedLocation = decodeURIComponent(res.headers.location);
+      expect(decodedLocation).toMatch(/Only verified university email addresses \(@\*\.ac\.lk\) are accepted/i);
+
+      // Verify no user was created in DB
+      const userInDb = await User.findOne({ email: 'regularstudent@gmail.com' });
+      expect(userInDb).toBeNull();
+    });
+
+    it('✅ links Google account to existing email+password account if emails match', async () => {
+      // 1. Register traditional student account with email + password (initially unverified)
+      const regRes = await registerUser({
+        fullName: 'Existing Scholar',
+        email: 'scholar@sci.cmb.ac.lk',
+        password: 'Password123!',
+      });
+      expect(regRes.status).toBe(201);
+      const initialUser = await User.findOne({ email: 'scholar@sci.cmb.ac.lk' });
+      expect(initialUser.googleId).toBeNull();
+      expect(initialUser.isVerified).toBe(false);
+
+      // 2. Sign in via Google with the same email
+      mockProfile = {
+        sub: 'google_linked_456',
+        email: 'scholar@sci.cmb.ac.lk',
+        name: 'Existing Scholar (Google Profile)',
+        picture: 'https://lh3.googleusercontent.com/avatar.jpg',
+      };
+
+      const res = await request(app).get('/api/auth/google/callback?code=mock_valid_code');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('/dashboard');
+
+      // Check HTTP-only session cookie issued
+      const cookies = res.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      const tokenCookie = cookies.find((c) => c.startsWith('token='));
+      expect(tokenCookie).toBeDefined();
+      expect(tokenCookie).toMatch(/HttpOnly/i);
+
+      // Verify DB state: user is updated with googleId and marked verified (skipping OTP)
+      const updatedUser = await User.findOne({ email: 'scholar@sci.cmb.ac.lk' });
+      expect(updatedUser.googleId).toBe('google_linked_456');
+      expect(updatedUser.isVerified).toBe(true);
+
+      // Verify existing user can still log in with their password
+      const loginRes = await loginUser({ email: 'scholar@sci.cmb.ac.lk', password: 'Password123!' });
+      expect(loginRes.status).toBe(200);
+      expect(loginRes.body.success).toBe(true);
+    });
+
+    it('✅ creates new Google user and lands on /dashboard without going through the OTP step', async () => {
+      mockProfile = {
+        sub: 'google_new_789',
+        email: 'freshman@eng.mrt.ac.lk',
+        name: 'Freshman Moratuwa',
+        picture: 'https://lh3.googleusercontent.com/freshman.jpg',
+      };
+
+      const res = await request(app).get('/api/auth/google/callback?code=mock_valid_code');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('/dashboard');
+
+      const cookies = res.headers['set-cookie'];
+      expect(cookies).toBeDefined();
+      const tokenCookie = cookies.find((c) => c.startsWith('token='));
+      expect(tokenCookie).toBeDefined();
+
+      // Check user in database
+      const newUser = await User.findOne({ email: 'freshman@eng.mrt.ac.lk' });
+      expect(newUser).toBeDefined();
+      expect(newUser.googleId).toBe('google_new_789');
+      expect(newUser.fullName).toBe('Freshman Moratuwa');
+      expect(newUser.campus).toBe('University of Moratuwa');
+      // Crucial: isVerified is true immediately — no OTP step required!
+      expect(newUser.isVerified).toBe(true);
+
+      // Access protected /api/auth/me directly with the issued cookie
+      const meRes = await request(app)
+        .get('/api/auth/me')
+        .set('Cookie', tokenCookie);
+
+      expect(meRes.status).toBe(200);
+      expect(meRes.body.data.user.email).toBe('freshman@eng.mrt.ac.lk');
+      expect(meRes.body.data.user.isVerified).toBe(true);
+    });
+
+    it('❌ blocks suspended user attempting to sign in with Google', async () => {
+      // Create suspended user
+      const suspended = await User.create({
+        fullName: 'Suspended Scholar',
+        email: 'violator@sci.cmb.ac.lk',
+        isSuspended: true,
+        suspendedReason: 'Marketplace policy violations',
+        googleId: 'google_suspended_000',
+      });
+
+      mockProfile = {
+        sub: 'google_suspended_000',
+        email: suspended.email,
+        name: 'Suspended Scholar',
+      };
+
+      const res = await request(app).get('/api/auth/google/callback?code=mock_valid_code');
+
+      expect(res.status).toBe(302);
+      expect(res.headers.location).toContain('/login?error=');
+      const decodedLocation = decodeURIComponent(res.headers.location);
+      expect(decodedLocation).toMatch(/account has been suspended/i);
+    });
+  });
+
+  describe('Programmatic Google Sign-In (POST /api/auth/google)', () => {
+    it('❌ returns 422 for non-.ac.lk email', async () => {
+      const res = await request(app).post('/api/auth/google').send({
+        googleId: 'google_api_111',
+        email: 'outsider@yahoo.com',
+        fullName: 'Outsider User',
+      });
+
+      expect(res.status).toBe(422);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toMatch(/Only verified university email addresses/i);
+    });
+
+    it('✅ creates and logs in new student with .ac.lk email', async () => {
+      const res = await request(app).post('/api/auth/google').send({
+        googleId: 'google_api_222',
+        email: 'api_student@pdn.ac.lk',
+        fullName: 'Peradeniya Student',
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.user.email).toBe('api_student@pdn.ac.lk');
+      expect(res.body.data.user.isVerified).toBe(true);
+      expect(res.headers['set-cookie']).toBeDefined();
+    });
+  });
+});
+

@@ -39,4 +39,14 @@ router.get('/me', requireAuth, authController.getMe);
 // POST /api/auth/verify-email
 router.post('/verify-email', validateRequest(verifyEmailSchema), authController.verifyEmail);
 
+// ── Google OAuth 2.0 ──────────────────────────────────────────────────────────
+// GET /api/auth/google (redirects to Google login)
+router.get('/google', authController.initiateGoogleAuth);
+
+// GET /api/auth/google/callback (Google redirects here with auth code)
+router.get('/google/callback', authController.handleGoogleCallback);
+
+// POST /api/auth/google (direct Google sign-in / programmatic endpoint)
+router.post('/google', authController.googleAuthJson);
+
 export default router;

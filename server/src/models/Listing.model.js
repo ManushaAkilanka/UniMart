@@ -46,7 +46,7 @@ const listingSchema = new Schema(
     price: {
       type: Number,
       required: function () {
-        return this.listingType !== 'free';
+        return this.listingType !== 'free' && this.listingType !== 'wanted';
       },
       min: [0, 'Price cannot be negative'],
       default: 0,
@@ -61,11 +61,26 @@ const listingSchema = new Schema(
       default: 'LKR',
       enum: ['LKR'],
     },
+    budgetMin: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    budgetMax: {
+      type: Number,
+      min: 0,
+      default: 0,
+    },
+    urgency: {
+      type: String,
+      enum: ['urgent', 'this-week', 'flexible'],
+      default: 'flexible',
+    },
     condition: {
       type: String,
       enum: ['new', 'like-new', 'used-good', 'used-fair'],
       required: function () {
-        return this.listingType !== 'wanted';
+        return this.listingType !== 'wanted' && this.listingType !== 'free';
       },
     },
     images: {
@@ -87,9 +102,14 @@ const listingSchema = new Schema(
       type: [String],
       default: [],
     },
+    claimedBy: {
+      type: Schema.Types.ObjectId,
+      ref: 'User',
+      default: null,
+    },
     status: {
       type: String,
-      enum: ['pending', 'active', 'sold', 'hidden'],
+      enum: ['pending', 'active', 'sold', 'fulfilled', 'claimed', 'hidden'],
       default: 'pending',
     },
     viewCount: {

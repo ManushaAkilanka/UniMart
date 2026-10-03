@@ -1,7 +1,12 @@
 import mongoose from 'mongoose';
-import { Listing, Category } from '../models/index.js';
+import { Listing, Category, Conversation, Message, Favorite, User } from '../models/index.js';
 import { deleteFromCloudinary } from '../services/cloudinary.service.js';
 import { ENV } from '../config/env.js';
+import {
+  notifyNewMessage,
+  notifyListingSold,
+  notifyClaim,
+} from '../services/notification.service.js';
 
 /**
  * Escapes regex special characters to prevent regex injection attacks.
@@ -208,6 +213,9 @@ export const createListing = async (req, res, next) => {
       price = 0,
       priceMode = 'fixed',
       currency = 'LKR',
+      budgetMin = 0,
+      budgetMax = 0,
+      urgency = 'flexible',
       condition,
       campus,
       meetupSpots = [],
@@ -244,9 +252,12 @@ export const createListing = async (req, res, next) => {
       description: description.trim(),
       categoryId: resolvedCategoryId,
       listingType,
-      price: listingType === 'free' ? 0 : price,
+      price: listingType === 'free' ? 0 : (listingType === 'wanted' && price === 0 && budgetMax > 0 ? budgetMax : price),
       priceMode,
       currency,
+      budgetMin,
+      budgetMax: budgetMax || (listingType === 'wanted' ? price : 0),
+      urgency,
       condition: listingType === 'wanted' ? undefined : condition,
       campus: campus.trim(),
       meetupSpots,
@@ -279,7 +290,8 @@ export const getListingById = async (req, res, next) => {
 
     const listing = await Listing.findById(id)
       .populate('sellerId', 'fullName email faculty campus isVerified avatarUrl createdAt')
-      .populate('categoryId', 'name slug icon');
+      .populate('categoryId', 'name slug icon')
+      .populate('claimedBy', '_id fullName');
 
     if (!listing) {
       return res.status(404).json({
@@ -288,20 +300,21 @@ export const getListingById = async (req, res, next) => {
       });
     }
 
-    // Check visibility rule: only active listings are public
+    // Check visibility rule: active listings are public; claimed/other statuses visible to owner, claimer, or admin
     const viewerId = req.user?._id?.toString();
     const isOwner = viewerId && viewerId === listing.sellerId?._id?.toString();
+    const isClaimer = viewerId && listing.claimedBy && viewerId === listing.claimedBy._id?.toString();
     const isAdmin = req.user?.role === 'admin';
 
-    if (listing.status !== 'active' && !isOwner && !isAdmin) {
+    if (listing.status !== 'active' && !isOwner && !isClaimer && !isAdmin) {
       return res.status(404).json({
         success: false,
         message: 'Listing is no longer active or available.',
       });
     }
 
-    // Rule: Increment viewCount safely (only if viewer is not the seller)
-    if (!isOwner) {
+    // Rule: Increment viewCount safely (only if viewer is not the seller or claimer)
+    if (!isOwner && !isClaimer) {
       await Listing.findByIdAndUpdate(id, { $inc: { viewCount: 1 } });
       listing.viewCount += 1;
     }
@@ -362,6 +375,9 @@ export const updateListing = async (req, res, next) => {
       'listingType',
       'price',
       'priceMode',
+      'budgetMin',
+      'budgetMax',
+      'urgency',
       'condition',
       'campus',
       'meetupSpots',
@@ -468,9 +484,140 @@ export const updateListingStatus = async (req, res, next) => {
     listing.status = status;
     await listing.save();
 
+    // Notify users who favorited this listing when it is marked sold
+    if (status === 'sold') {
+      const favs = await Favorite.find({ listingId: listing._id })
+        .populate('userId', 'email')
+        .lean();
+      const favoriters = favs.map((f) => ({
+        userId: f.userId._id,
+        email: f.userId.email,
+      }));
+      if (favoriters.length > 0) {
+        notifyListingSold({
+          listingId: listing._id,
+          listingTitle: listing.title,
+          favoriters,
+        }).catch(() => {});
+      }
+    }
+
     res.status(200).json({
       success: true,
       message: `Listing marked as ${status}.`,
+      data: { listing },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/listings/:id/claim
+ * Claim a free listing. Creates/reuses a conversation and sends an auto message.
+ * - Must be authenticated and not the owner
+ * - Listing must be type 'free' and status 'active'
+ */
+export const claimListing = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const claimerId = req.user._id;
+
+    const listing = await Listing.findById(id);
+    if (!listing) {
+      return res.status(404).json({ success: false, message: 'Listing not found.' });
+    }
+    if (listing.listingType !== 'free') {
+      return res.status(400).json({ success: false, message: 'Only free listings can be claimed.' });
+    }
+    if (listing.sellerId.toString() === claimerId.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot claim your own listing.' });
+    }
+    if (listing.status === 'claimed') {
+      return res.status(409).json({ success: false, message: 'This item has already been claimed.' });
+    }
+    if (listing.status !== 'active') {
+      return res.status(400).json({ success: false, message: 'This listing is no longer available.' });
+    }
+
+    // Find or create conversation between claimer and owner for this listing
+    let conversation = await Conversation.findOne({
+      listingId: listing._id,
+      buyerId: claimerId,
+      sellerId: listing.sellerId,
+    });
+
+    if (!conversation) {
+      conversation = await Conversation.create({
+        listingId: listing._id,
+        buyerId: claimerId,
+        sellerId: listing.sellerId,
+        participants: [claimerId, listing.sellerId],
+      });
+    }
+
+    // Auto-send the claim message from the claimer
+    const autoMessage = await Message.create({
+      conversationId: conversation._id,
+      senderId: claimerId,
+      body: "Hi! I'd like to pick this up. When would be a good time to meet?",
+    });
+
+    // Update conversation timestamps and lastMessage reference
+    conversation.lastMessage = autoMessage._id;
+    conversation.lastMessageAt = new Date();
+    await conversation.save();
+
+    // Mark listing as claimed
+    listing.status = 'claimed';
+    listing.claimedBy = claimerId;
+    await listing.save();
+
+    // Notify the listing owner that their item was claimed
+    const claimer = await User.findById(claimerId).select('fullName').lean();
+    notifyClaim({
+      listingId: listing._id,
+      listingTitle: listing.title,
+      ownerUserId: listing.sellerId,
+      claimerName: claimer?.fullName || 'A student',
+    }).catch(() => {});
+
+    res.status(200).json({
+      success: true,
+      message: 'Item claimed successfully. A message has been sent to the owner.',
+      data: { listing, conversationId: conversation._id },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * POST /api/listings/:id/release-claim
+ * Release an existing claim (owner only). Returns listing to 'active'.
+ */
+export const releaseClaim = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+
+    const listing = await Listing.findById(id);
+    if (!listing) {
+      return res.status(404).json({ success: false, message: 'Listing not found.' });
+    }
+    if (listing.sellerId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Only the owner can release a claim.' });
+    }
+    if (listing.status !== 'claimed') {
+      return res.status(400).json({ success: false, message: 'This listing does not have an active claim.' });
+    }
+
+    listing.status = 'active';
+    listing.claimedBy = null;
+    await listing.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Claim released. Listing is active again.',
       data: { listing },
     });
   } catch (err) {

@@ -11,7 +11,7 @@ const reportSchema = new Schema(
     },
     targetType: {
       type: String,
-      enum: ['listing', 'user', 'message'],
+      enum: ['listing', 'user', 'message', 'conversation'],
       required: true,
     },
     targetId: {

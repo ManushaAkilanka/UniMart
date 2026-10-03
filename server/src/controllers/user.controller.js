@@ -183,3 +183,75 @@ export const getSellerListings = async (req, res, next) => {
     next(err);
   }
 };
+
+// ── POST /api/users/:id/block ─────────────────────────────────────────────────
+export const blockUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.user._id;
+
+    if (!OBJECT_ID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID.' });
+    }
+
+    if (id.toString() === currentUserId.toString()) {
+      return res.status(400).json({ success: false, message: 'You cannot block yourself.' });
+    }
+
+    const targetUser = await User.findById(id);
+    if (!targetUser) {
+      return res.status(404).json({ success: false, message: 'User not found.' });
+    }
+
+    await User.findByIdAndUpdate(currentUserId, {
+      $addToSet: { blockedUsers: new mongoose.Types.ObjectId(id) },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: `${targetUser.fullName} has been blocked.`,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── POST /api/users/:id/unblock ───────────────────────────────────────────────
+export const unblockUser = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const currentUserId = req.user._id;
+
+    if (!OBJECT_ID_REGEX.test(id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID.' });
+    }
+
+    await User.findByIdAndUpdate(currentUserId, {
+      $pull: { blockedUsers: new mongoose.Types.ObjectId(id) },
+    });
+
+    res.status(200).json({
+      success: true,
+      message: 'User unblocked successfully.',
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── GET /api/users/blocked ────────────────────────────────────────────────────
+export const getBlockedUsers = async (req, res, next) => {
+  try {
+    const user = await User.findById(req.user._id)
+      .populate('blockedUsers', 'fullName avatarUrl campus faculty isVerified')
+      .lean();
+
+    res.status(200).json({
+      success: true,
+      blockedUsers: user?.blockedUsers || [],
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

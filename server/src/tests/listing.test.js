@@ -179,6 +179,47 @@ describe('UniMart Listings Backend API', () => {
       expect(res.body.data.listing.sellerId._id).toBe(userAId);
     });
 
+    it('creates a wanted request listing without price, condition, or images successfully', async () => {
+      const res = await request(app)
+        .post('/api/listings')
+        .set('Authorization', `Bearer ${userAToken}`)
+        .send({
+          title: 'Looking for Organic Chemistry Molecular Model Kit',
+          description: 'Needed for 2nd year chemistry lab modules. Flexible with kit brands.',
+          categoryId: categoryAcademic.slug,
+          listingType: 'wanted',
+          budgetMin: 1500,
+          budgetMax: 3000,
+          urgency: 'urgent',
+          campus: 'University of Colombo',
+        });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.listing.listingType).toBe('wanted');
+      expect(res.body.data.listing.budgetMax).toBe(3000);
+      expect(res.body.data.listing.urgency).toBe('urgent');
+      expect(res.body.data.listing.images).toHaveLength(0);
+      expect(res.body.data.listing.status).toBe('active');
+    });
+
+    it('rejects a sale listing without price or with invalid price', async () => {
+      const res = await request(app)
+        .post('/api/listings')
+        .set('Authorization', `Bearer ${userAToken}`)
+        .send({
+          title: 'Incomplete Sale Listing',
+          description: 'Valid description that has sufficient character count.',
+          categoryId: categoryAcademic.slug,
+          listingType: 'sale',
+          condition: 'like-new',
+          campus: 'University of Colombo',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Validation error');
+    });
+
     it('validates and rejects non-image file uploads with invalid file signatures', async () => {
       const res = await request(app)
         .post('/api/listings')
@@ -495,6 +536,31 @@ describe('UniMart Listings Backend API', () => {
       expect(freshDoc.status).toBe('sold');
     });
 
+    it("allows User A (owner) to mark wanted listing as fulfilled", async () => {
+      const wantedListing = await Listing.create({
+        sellerId: userAId,
+        title: 'Looking for Arduino Uno R3 and sensors kit',
+        description: 'Needed for robotics project semester 4 at Colombo campus.',
+        categoryId: categoryElectronics._id,
+        listingType: 'wanted',
+        urgency: 'this-week',
+        budgetMax: 4000,
+        campus: 'University of Colombo',
+        status: 'active',
+      });
+
+      const res = await request(app)
+        .patch(`/api/listings/${wantedListing._id}/status`)
+        .set('Authorization', `Bearer ${userAToken}`)
+        .send({ status: 'fulfilled' });
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.listing.status).toBe('fulfilled');
+
+      const freshDoc = await Listing.findById(wantedListing._id);
+      expect(freshDoc.status).toBe('fulfilled');
+    });
+
     it("PREVENTS User B from deleting User A's listing (403 Forbidden)", async () => {
       const res = await request(app)
         .delete(`/api/listings/${listingA._id}`)
@@ -578,6 +644,128 @@ describe('UniMart Listings Backend API', () => {
     it('rejects unauthenticated request with 401', async () => {
       const res = await request(app).get('/api/listings/mine');
       expect(res.status).toBe(401);
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // POST /api/listings/:id/claim & /release-claim
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('Claim Flow (POST /api/listings/:id/claim & /release-claim)', () => {
+    let freeListing;
+    let saleListing;
+
+    beforeEach(async () => {
+      // User A owns a free listing
+      freeListing = await Listing.create({
+        sellerId: userAId,
+        title: 'Free Textbook — Engineering Maths',
+        description: 'Giving away my first year engineering maths textbook, in great condition.',
+        categoryId: categoryAcademic._id,
+        listingType: 'free',
+        campus: 'University of Colombo',
+        status: 'active',
+      });
+
+      // User A owns a sale listing (to test type rejection)
+      saleListing = await Listing.create({
+        sellerId: userAId,
+        title: 'Casio FX-991ES Plus',
+        description: 'Scientific calculator for engineering exams, fully functional.',
+        categoryId: categoryAcademic._id,
+        listingType: 'sale',
+        price: 5500,
+        condition: 'used-good',
+        campus: 'University of Colombo',
+        status: 'active',
+      });
+    });
+
+    it('User B can claim a free listing and a conversation + message are created', async () => {
+      const res = await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${userBToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.listing.status).toBe('claimed');
+      expect(res.body.data.conversationId).toBeDefined();
+    });
+
+    it('rejects unauthenticated claim attempt with 401', async () => {
+      const res = await request(app).post(`/api/listings/${freeListing._id}/claim`);
+      expect(res.status).toBe(401);
+    });
+
+    it('prevents the owner (User A) from claiming their own listing', async () => {
+      const res = await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${userAToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/cannot claim your own/i);
+    });
+
+    it('rejects claiming a non-free listing', async () => {
+      const res = await request(app)
+        .post(`/api/listings/${saleListing._id}/claim`)
+        .set('Authorization', `Bearer ${userBToken}`);
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/only free listings/i);
+    });
+
+    it('returns 409 if item is already claimed', async () => {
+      // First claim succeeds
+      await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${userBToken}`);
+
+      // Register a third active student to attempt claiming the already-claimed listing
+      const resC = await request(app).post('/api/auth/register').send({
+        fullName: 'Student Charlie',
+        email: 'charlie@sci.cmb.ac.lk',
+        password: 'Password123!',
+      });
+      const userCToken = resC.headers['set-cookie'][0].split(';')[0].replace('token=', '');
+
+      // Second claim attempt (by a different user) should fail with 409
+      const res = await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${userCToken}`);
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toMatch(/already been claimed/i);
+    });
+
+    it('owner (User A) can release the claim and listing returns to active', async () => {
+      // User B claims it first
+      await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${userBToken}`);
+
+      // User A (owner) releases the claim
+      const res = await request(app)
+        .post(`/api/listings/${freeListing._id}/release-claim`)
+        .set('Authorization', `Bearer ${userAToken}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.data.listing.status).toBe('active');
+      expect(res.body.data.listing.claimedBy).toBeNull();
+    });
+
+    it('prevents User B from releasing a claim they do not own', async () => {
+      // User B claims it
+      await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${userBToken}`);
+
+      // User B tries to release (only owner can release)
+      const res = await request(app)
+        .post(`/api/listings/${freeListing._id}/release-claim`)
+        .set('Authorization', `Bearer ${userBToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/only the owner/i);
     });
   });
 });

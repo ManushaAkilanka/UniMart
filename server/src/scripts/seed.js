@@ -66,7 +66,7 @@ const SAMPLE_STUDENTS = [
   {
     fullName: 'Kavindu Senaratne',
     email: 'kavindu.s@sci.cmb.ac.lk',
-    faculty: 'Faculty of Science (UOC)',
+    faculty: 'Faculty of Science',
     campus: 'University of Colombo',
     role: 'student',
     isVerified: true,
@@ -84,6 +84,54 @@ const SAMPLE_STUDENTS = [
     email: 'dineth.j@eng.mrt.ac.lk',
     faculty: 'Faculty of Engineering',
     campus: 'University of Moratuwa',
+    role: 'student',
+    isVerified: true,
+  },
+  {
+    fullName: 'Anuki Wickramasinghe',
+    email: 'anuki.w@itfac.mrt.ac.lk',
+    faculty: 'Faculty of Information Technology',
+    campus: 'University of Moratuwa',
+    role: 'student',
+    isVerified: true,
+  },
+  {
+    fullName: 'Tharindu Bandara',
+    email: 'tharindu.b@eng.pdn.ac.lk',
+    faculty: 'Faculty of Engineering',
+    campus: 'University of Peradeniya',
+    role: 'student',
+    isVerified: true,
+  },
+  {
+    fullName: 'Nethmi Fernando',
+    email: 'nethmi.f@mgt.sjp.ac.lk',
+    faculty: 'Faculty of Management Studies',
+    campus: 'University of Sri Jayewardenepura',
+    role: 'student',
+    isVerified: true,
+  },
+  {
+    fullName: 'Sahan Dissanayake',
+    email: 'sahan.d@kln.ac.lk',
+    faculty: 'Faculty of Computing & Technology',
+    campus: 'University of Kelaniya',
+    role: 'student',
+    isVerified: true,
+  },
+  {
+    fullName: 'Minoli Weerakkody',
+    email: 'minoli.w@sliit.lk',
+    faculty: 'Faculty of Computing',
+    campus: 'SLIIT',
+    role: 'student',
+    isVerified: true,
+  },
+  {
+    fullName: 'Gayan Rathnayake',
+    email: 'gayan.r@sci.ruh.ac.lk',
+    faculty: 'Faculty of Science',
+    campus: 'University of Ruhuna',
     role: 'student',
     isVerified: true,
   },
@@ -522,6 +570,92 @@ const LISTINGS_TEMPLATE = [
     images: [{ url: 'https://images.unsplash.com/photo-1626224583764-f87db24ac4ea?w=800', publicId: 'sample/yonex_racket' }],
     viewCount: 64,
   },
+
+  // ── Wanted Requests (Active Campus Requests) ───────────────────────────────
+  {
+    title: 'Wanted: Casio fx-991EX ClassWiz for Upcoming Midterms',
+    description:
+      'Urgent requirement for semester 3 calculus and signals exams. Any condition accepted as long as all matrix and natural display functions work.',
+    catSlug: 'academic-gear',
+    listingType: 'wanted',
+    budgetMin: 4000,
+    budgetMax: 6500,
+    urgency: 'urgent',
+    campus: 'University of Moratuwa',
+    meetupSpots: ['Sentra Court', 'Civil Department Canteen'],
+    images: [],
+    viewCount: 31,
+  },
+  {
+    title: 'Looking for: Arduino Uno Starter Kit & Sensor Modules',
+    description:
+      'Looking for an Arduino Uno R3 or Mega with breadboard, jumper wires, ultrasonic sensor, and motor shield for robotic design mini-project.',
+    catSlug: 'electronics-laptops',
+    listingType: 'wanted',
+    budgetMin: 2500,
+    budgetMax: 4500,
+    urgency: 'this-week',
+    campus: 'University of Peradeniya',
+    meetupSpots: ['Engineering Faculty Canteen', 'Gymnasium Gate'],
+    images: [],
+    viewCount: 18,
+  },
+  {
+    title: 'Wanted: Organic Chemistry Molecular Modeling Kit',
+    description:
+      'Needed for 2nd year organic synthesis course. Plastic ball-and-stick model set (Darling or Molymod) preferred for stereochemistry labs.',
+    catSlug: 'academic-gear',
+    listingType: 'wanted',
+    budgetMin: 2000,
+    budgetMax: 3500,
+    urgency: 'flexible',
+    campus: 'University of Colombo',
+    meetupSpots: ['Science Quadrangle Porch', 'King George Hall'],
+    images: [],
+    viewCount: 22,
+  },
+  {
+    title: 'Looking for: Compact Mini Rice Cooker for Hostel Living',
+    description:
+      'Seeking a clean 0.8L to 1.2L personal electric rice cooker or steamer in working condition. Moving into Soratha hostel this weekend.',
+    catSlug: 'hostel-dorm-living',
+    listingType: 'wanted',
+    budgetMin: 2500,
+    budgetMax: 4000,
+    urgency: 'this-week',
+    campus: 'University of Sri Jayewardenepura',
+    meetupSpots: ['Sumangala Building Lobby', 'Soratha Hostel Gate'],
+    images: [],
+    viewCount: 14,
+  },
+  {
+    title: 'Seeking: Secondhand Commuter Bicycle for Campus Travel',
+    description:
+      'Looking to purchase a reliable gents or ladies city commuter bicycle for daily travel between Wellamadama campus and boarding place.',
+    catSlug: 'bicycle-transport',
+    listingType: 'wanted',
+    budgetMin: 12000,
+    budgetMax: 18000,
+    urgency: 'flexible',
+    campus: 'University of Ruhuna',
+    meetupSpots: ['Wellamadama Main Gate', 'Science Faculty Car Park'],
+    images: [],
+    viewCount: 27,
+  },
+  {
+    title: 'Wanted: Badminton Racket (Yonex or Li-Ning entry level)',
+    description:
+      'Looking for a decent badminton racket with string tension around 22-24 lbs for casual play at the student center sports courts.',
+    catSlug: 'sports-fitness',
+    listingType: 'wanted',
+    budgetMin: 3000,
+    budgetMax: 5500,
+    urgency: 'flexible',
+    campus: 'SLIIT',
+    meetupSpots: ['SLIIT Malabe Student Center', 'Canteen 01'],
+    images: [],
+    viewCount: 16,
+  },
 ];
 
 export async function seedData() {
@@ -574,8 +708,8 @@ export async function seedData() {
     console.log(`  ✅ Student: ${student.fullName} (${student.campus})`);
   }
 
-  // 4. Seed 30 Sample Listings
-  console.log('\n[Seed] 📦 Seeding 30 sample listings…');
+  // 4. Seed Sample Listings
+  console.log('\n[Seed] 📦 Seeding sample listings…');
   let count = 0;
   for (let i = 0; i < LISTINGS_TEMPLATE.length; i++) {
     const item = LISTINGS_TEMPLATE[i];
@@ -588,15 +722,18 @@ export async function seedData() {
       categoryId,
       sellerId,
       listingType: item.listingType,
-      price: item.price,
-      priceMode: item.priceMode,
+      price: item.price ?? (item.budgetMax || 0),
+      priceMode: item.priceMode || 'fixed',
       currency: 'LKR',
+      budgetMin: item.budgetMin,
+      budgetMax: item.budgetMax,
+      urgency: item.urgency,
       condition: item.condition,
       campus: item.campus,
-      meetupSpots: item.meetupSpots,
-      images: item.images,
+      meetupSpots: item.meetupSpots || [],
+      images: item.images || [],
       status: 'active',
-      viewCount: item.viewCount,
+      viewCount: item.viewCount || 0,
     };
 
     await Listing.findOneAndUpdate({ title: item.title }, listingData, {
@@ -605,10 +742,10 @@ export async function seedData() {
       setDefaultsOnInsert: true,
     });
     count++;
-    console.log(`  [${count}/30] ✅ ${item.title.substring(0, 48)}… (Rs. ${item.price})`);
+    console.log(`  [${count}/${LISTINGS_TEMPLATE.length}] ✅ ${item.title.substring(0, 48)}… (${item.listingType})`);
   }
 
-  console.log(`\n[Seed] 🎉 Successfully seeded ${count} listings, 6 categories, and 4 users.\n`);
+  console.log(`\n[Seed] 🎉 Successfully seeded ${count} listings, 6 categories, and ${SAMPLE_STUDENTS.length + 1} users.\n`);
 }
 
 const isCLI = process.argv[1] && (process.argv[1].endsWith('seed.js') || process.argv[1].endsWith('seed'));

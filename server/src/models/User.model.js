@@ -21,8 +21,18 @@ const userSchema = new Schema(
     },
     passwordHash: {
       type: String,
-      required: [true, 'Password is required'],
+      required: [
+        function () {
+          return !this.googleId;
+        },
+        'Password is required',
+      ],
       select: false, // Never return password by default
+    },
+    googleId: {
+      type: String,
+      sparse: true,
+      default: null,
     },
     studentId: {
       type: String,
@@ -61,6 +71,12 @@ const userSchema = new Schema(
       type: String,
       default: null,
     },
+    blockedUsers: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: 'User',
+      },
+    ],
     // Email verification fields
     emailVerificationCode: {
       type: String,
@@ -93,6 +109,7 @@ userSchema.index({ isSuspended: 1 });
 
 // Instance method: compare password
 userSchema.methods.comparePassword = async function (plainPassword) {
+  if (!this.passwordHash) return false;
   return bcrypt.compare(plainPassword, this.passwordHash);
 };
 
