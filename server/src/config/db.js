@@ -1,7 +1,16 @@
+import dns from 'dns';
 import mongoose from 'mongoose';
 import { ENV } from './env.js';
 import { Category } from '../models/index.js';
 import { seedData } from '../scripts/seed.js';
+
+// Ensure reliable DNS resolution for MongoDB Atlas SRV records
+// (Prevents querySrv ECONNREFUSED on local routers/ISPs that do not resolve SRV records)
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch {
+  // Graceful fallback if custom DNS setting is not permitted in the runtime
+}
 
 let mongodInstance = null;
 
