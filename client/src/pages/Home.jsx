@@ -87,6 +87,7 @@ export const Home = () => {
   const [fresh, setFresh] = useState({ data: null, loading: true, error: null });
   const [popular, setPopular] = useState({ data: null, loading: true, error: null });
   const [freeItems, setFreeItems] = useState({ data: null, loading: true, error: null });
+  const [wantedItems, setWantedItems] = useState({ data: null, loading: true, error: null });
   const [categories, setCategories] = useState([]);
 
   const fetchSection = useCallback(async (params, setter) => {
@@ -103,6 +104,7 @@ export const Home = () => {
     fetchSection({ sort: 'newest', limit: 4 }, setFresh);
     fetchSection({ sort: 'popular', limit: 4 }, setPopular);
     fetchSection({ listingType: 'free', sort: 'newest', limit: 4 }, setFreeItems);
+    fetchSection({ listingType: 'wanted', sort: 'newest', limit: 4 }, setWantedItems);
 
     getCategories()
       .then((res) => setCategories(res.data?.categories || []))
@@ -319,6 +321,31 @@ export const Home = () => {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-lg">
             {freeItems.data?.map((l) => (
+              <ListingCard key={l._id} listing={l} />
+            ))}
+          </div>
+        )}
+      </Section>
+
+      {/* ── WANTED REQUESTS ──────────────────────────────────────────────── */}
+      <Section
+        eyebrow="Student Requests"
+        title="Wanted Requests"
+        subtitle="Students actively searching for textbooks, lab tools, and gear. Got one to spare?"
+        href="/browse?listingType=wanted"
+        loading={wantedItems.loading}
+        error={wantedItems.error}
+      >
+        {wantedItems.data?.length === 0 ? (
+          <p className="text-on-surface-variant font-body-md text-body-md py-8 text-center">
+            No active student requests right now. Looking for something specific?{' '}
+            <Link to="/create-listing" className="text-secondary font-headline-sm hover:underline">
+              Post a Wanted Request →
+            </Link>
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-lg">
+            {wantedItems.data?.map((l) => (
               <ListingCard key={l._id} listing={l} />
             ))}
           </div>

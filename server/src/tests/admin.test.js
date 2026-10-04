@@ -16,6 +16,7 @@ import { User, Category, Listing, Report } from '../models/index.js';
 
 vi.mock('../services/email.service.js', () => ({
   sendVerificationEmail: vi.fn().mockResolvedValue({ messageId: 'test-admin' }),
+  sendNotificationEmail: vi.fn().mockResolvedValue({ messageId: 'test-admin-notif' }),
 }));
 
 // ── Helpers ──────────────────────────────────────────────────────────────────

@@ -1,17 +1,168 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Button } from '../ui/Button';
 import { Avatar } from '../ui/Avatar';
 import { cn } from '../../utils/cn';
-
 import { useAuth } from '../../context/AuthContext';
 import { useFavorites } from '../../context/FavoritesContext';
+import { useUnreadCount } from '../../context/useUnreadCount';
+import { useNotifications } from '../../context/useNotifications';
 
+// ── Relative timestamp helper ────────────────────────────────────────────────
+function timeAgo(dateStr) {
+  const diff = (Date.now() - new Date(dateStr).getTime()) / 1000;
+  if (diff < 60) return 'just now';
+  if (diff < 3600) return `${Math.floor(diff / 60)}m ago`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+  return `${Math.floor(diff / 86400)}d ago`;
+}
+
+// ── Notification type icon map ───────────────────────────────────────────────
+const TYPE_ICON = {
+  message: 'chat_bubble',
+  favorite: 'favorite',
+  listing_sold: 'sell',
+  report_resolved: 'verified_user',
+  claim: 'redeem',
+};
+const TYPE_COLOR = {
+  message: 'text-secondary',
+  favorite: 'text-error',
+  listing_sold: 'text-warning',
+  report_resolved: 'text-secondary',
+  claim: 'text-secondary',
+};
+
+// ── NotificationDropdown ─────────────────────────────────────────────────────
+const NotificationDropdown = ({ notifications, unreadCount, onMarkOne, onMarkAll, onClose }) => {
+  const navigate = useNavigate();
+
+  const handleClick = (n) => {
+    if (!n.isRead) onMarkOne(n._id);
+    if (n.linkTo) {
+      navigate(n.linkTo);
+      onClose();
+    }
+  };
+
+  return (
+    <div
+      className="absolute right-0 top-full mt-2 w-80 bg-surface rounded-xl shadow-level3 border border-outline-variant/20 overflow-hidden z-50"
+      role="dialog"
+      aria-label="Notifications"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 border-b border-outline-variant/20">
+        <span className="font-headline-sm text-headline-sm text-on-surface font-semibold">
+          Notifications
+          {unreadCount > 0 && (
+            <span className="ml-2 inline-flex items-center justify-center h-5 min-w-[20px] px-1.5 rounded-full bg-error text-on-error font-label-sm text-[10px] font-bold">
+              {unreadCount > 99 ? '99+' : unreadCount}
+            </span>
+          )}
+        </span>
+        {unreadCount > 0 && (
+          <button
+            onClick={onMarkAll}
+            className="font-label-sm text-label-sm text-secondary hover:text-secondary/70 transition-colors"
+          >
+            Mark all read
+          </button>
+        )}
+      </div>
+
+      {/* List */}
+      <div className="max-h-[400px] overflow-y-auto divide-y divide-outline-variant/10">
+        {notifications.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-10 gap-2 text-on-surface-variant">
+            <span className="material-symbols-outlined text-4xl opacity-40">notifications_none</span>
+            <span className="font-body-sm text-body-sm">All caught up!</span>
+          </div>
+        ) : (
+          notifications.map((n) => (
+            <button
+              key={n._id}
+              onClick={() => handleClick(n)}
+              className={cn(
+                'w-full text-left flex items-start gap-3 px-4 py-3 transition-colors hover:bg-surface-container group',
+                !n.isRead && 'bg-secondary-container/20'
+              )}
+            >
+              {/* Icon */}
+              <span
+                className={cn(
+                  'material-symbols-outlined text-xl shrink-0 mt-0.5',
+                  TYPE_COLOR[n.type] || 'text-on-surface-variant'
+                )}
+              >
+                {TYPE_ICON[n.type] || 'notifications'}
+              </span>
+
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                <p className={cn(
+                  'font-label-md text-label-md text-on-surface truncate',
+                  !n.isRead && 'font-semibold'
+                )}>
+                  {n.title}
+                </p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant line-clamp-2 mt-0.5">
+                  {n.body}
+                </p>
+                <p className="font-code-sm text-code-sm text-on-surface-variant/60 mt-1">
+                  {timeAgo(n.createdAt)}
+                </p>
+              </div>
+
+              {/* Unread dot */}
+              {!n.isRead && (
+                <span className="w-2 h-2 rounded-full bg-secondary shrink-0 mt-1.5" />
+              )}
+            </button>
+          ))
+        )}
+      </div>
+
+      {/* Footer */}
+      {notifications.length > 0 && (
+        <div className="border-t border-outline-variant/20 px-4 py-2">
+          <Link
+            to="/notifications"
+            onClick={onClose}
+            className="block text-center font-label-sm text-label-sm text-secondary hover:text-secondary/70 transition-colors py-1"
+          >
+            See all notifications
+          </Link>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// ── Navbar ───────────────────────────────────────────────────────────────────
 export const Navbar = ({ onOpenCampusModal }) => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
+  const notifRef = useRef(null);
+
   const { user, isAuthenticated } = useAuth();
   const { count: favCount } = useFavorites();
+  const unreadCount = useUnreadCount();
+  const { notifications, unreadCount: notifUnread, markOneRead, markAllRead } = useNotifications();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setNotifOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const closeNotif = useCallback(() => setNotifOpen(false), []);
 
   const navLinks = [
     { label: 'Browse', path: '/browse' },
@@ -121,22 +272,58 @@ export const Navbar = ({ onOpenCampusModal }) => {
                   className="relative p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
                 >
                   <span className="material-symbols-outlined text-xl leading-none">chat_bubble</span>
-                  <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-error text-on-error font-label-sm text-[10px] font-bold">
-                    2
-                  </span>
+                  {unreadCount > 0 && (
+                    <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-error text-on-error font-label-sm text-[10px] font-bold">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  )}
                 </Link>
 
-                {/* Notifications */}
-                <button
-                  type="button"
-                  aria-label="Notifications"
-                  className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
-                >
-                  <span className="material-symbols-outlined text-xl leading-none">notifications</span>
-                </button>
+                {/* Notifications Bell */}
+                <div className="relative" ref={notifRef}>
+                  <button
+                    type="button"
+                    id="notifications-bell"
+                    aria-label="Notifications"
+                    aria-expanded={notifOpen}
+                    onClick={() => setNotifOpen((o) => !o)}
+                    className="relative p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-xl leading-none">
+                      {notifUnread > 0 ? 'notifications_active' : 'notifications'}
+                    </span>
+                    {notifUnread > 0 && (
+                      <span className="absolute top-1 right-1 flex items-center justify-center min-w-[16px] h-4 px-1 rounded-full bg-error text-on-error font-label-sm text-[10px] font-bold">
+                        {notifUnread > 99 ? '99+' : notifUnread}
+                      </span>
+                    )}
+                  </button>
+
+                  {notifOpen && (
+                    <NotificationDropdown
+                      notifications={notifications}
+                      unreadCount={notifUnread}
+                      onMarkOne={markOneRead}
+                      onMarkAll={markAllRead}
+                      onClose={closeNotif}
+                    />
+                  )}
+                </div>
+
+                {/* Moderation Console (moderator / admin only) */}
+                {(user?.role === 'moderator' || user?.role === 'admin') && (
+                  <Link
+                    to="/moderation"
+                    aria-label="Moderation Console"
+                    title="Moderation Console"
+                    className="p-2 rounded-lg text-secondary hover:bg-secondary-container/30 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-xl leading-none">admin_panel_settings</span>
+                  </Link>
+                )}
               </div>
 
-              {/* User Profile Avatar linking to Profile page */}
+              {/* User Profile Avatar */}
               <Link to="/profile" className="ml-1 shrink-0" aria-label="My Profile">
                 <Avatar
                   name={user?.fullName || 'Student'}
@@ -147,14 +334,25 @@ export const Navbar = ({ onOpenCampusModal }) => {
               </Link>
             </>
           ) : (
+            // ── Unauthenticated: Sign In + Register ─────────────────────────────
+            // Before: Register used variant="secondary" → dark brand-navy pill, illegible
+            // After:  Register uses variant="outline" with secondary text colour — readable
+            //         on the light navbar, clearly distinct from "Sign In" (which uses
+            //         outline too but without the colour override so it reads as the primary
+            //         CTA via its left-to-right order). A subtle border-secondary ring makes
+            //         it visually pop without going dark.
             <div className="flex items-center gap-2">
               <Link to="/login">
-                <Button variant="outline" size="sm">
+                <Button variant="ghost" size="sm">
                   Sign In
                 </Button>
               </Link>
               <Link to="/register">
-                <Button variant="secondary" size="sm">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-secondary/40 text-secondary hover:bg-secondary/8 hover:border-secondary"
+                >
                   Register
                 </Button>
               </Link>
@@ -220,16 +418,30 @@ export const Navbar = ({ onOpenCampusModal }) => {
                   <span className="material-symbols-outlined text-xl text-secondary">person</span>
                   <span>My Profile</span>
                 </Link>
+                {(user?.role === 'moderator' || user?.role === 'admin') && (
+                  <Link
+                    to="/moderation"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-2 px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm text-secondary hover:bg-secondary-container/20 transition-colors"
+                  >
+                    <span className="material-symbols-outlined text-xl">admin_panel_settings</span>
+                    <span>Moderation Console</span>
+                  </Link>
+                )}
               </>
             ) : (
               <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/20">
                 <Link to="/login" onClick={() => setMobileMenuOpen(false)} className="flex-1">
-                  <Button variant="outline" size="sm" className="w-full">
+                  <Button variant="ghost" size="sm" className="w-full">
                     Sign In
                   </Button>
                 </Link>
                 <Link to="/register" onClick={() => setMobileMenuOpen(false)} className="flex-1">
-                  <Button variant="secondary" size="sm" className="w-full">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="w-full border-secondary/40 text-secondary hover:bg-secondary/8 hover:border-secondary"
+                  >
                     Register
                   </Button>
                 </Link>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -17,9 +17,17 @@ export const SignIn = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [fieldErrors, setFieldErrors] = useState({});
-  const [showGoogleTooltip, setShowGoogleTooltip] = useState(false);
 
   const from = location.state?.from?.pathname || '/dashboard';
+
+  // Read any error redirected back from OAuth callback
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const oauthError = params.get('error');
+    if (oauthError) {
+      setError(decodeURIComponent(oauthError));
+    }
+  }, [location.search]);
 
   const validate = () => {
     const errors = {};
@@ -102,60 +110,45 @@ export const SignIn = () => {
             </p>
           </div>
 
-          {/* Google SSO (Disabled with "Coming Soon" Tooltip) */}
-          <div className="mt-space-lg relative">
-            <div
-              className="relative inline-block w-full"
-              onMouseEnter={() => setShowGoogleTooltip(true)}
-              onMouseLeave={() => setShowGoogleTooltip(false)}
+          {/* Google SSO */}
+          <div className="mt-space-lg">
+            <button
+              type="button"
+              onClick={() => {
+                window.location.href = '/api/auth/google';
+              }}
+              className="w-full flex flex-col items-center justify-center p-space-md rounded-lg bg-surface-container-low hover:bg-surface-container active:scale-[0.99] transition-all group text-left border border-outline-variant/30 cursor-pointer shadow-sm"
             >
-              <button
-                type="button"
-                disabled
-                className="w-full flex flex-col items-center justify-center p-space-md rounded-lg bg-surface-container-low opacity-75 cursor-not-allowed group text-left border border-outline-variant/30"
-              >
-                <div className="w-full flex items-center justify-center gap-space-sm">
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                    <path
-                      d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.88c2.27-2.09 3.665-5.17 3.665-9.09z"
-                      fill="#4285F4"
-                    />
-                    <path
-                      d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.1C3.25 21.36 7.33 24 12 24z"
-                      fill="#34A853"
-                    />
-                    <path
-                      d="M5.28 14.32c-.25-.72-.38-1.49-.38-2.32s.13-1.6.38-2.32V6.58H1.26A11.96 11.96 0 000 12c0 1.92.45 3.74 1.26 5.42l4.02-3.1z"
-                      fill="#FBBC05"
-                    />
-                    <path
-                      d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.64 1.26 6.58l4.02 3.1c.95-2.83 3.6-4.93 6.72-4.93z"
-                      fill="#EA4335"
-                    />
-                  </svg>
-                  <span className="font-headline-md text-headline-md text-on-surface">
-                    Continue with Google Workspace
-                  </span>
-                  <span className="px-2 py-0.5 rounded-full bg-surface-container font-label-sm text-[10px] uppercase font-bold text-on-surface-variant">
-                    Coming Soon
-                  </span>
-                </div>
-                <span className="font-label-sm text-label-sm text-on-surface-variant text-center mt-space-2xs">
-                  Recommended for institutional Google accounts (
-                  <span className="font-code-sm text-code-sm text-secondary">@cmb.ac.lk</span>,{' '}
-                  <span className="font-code-sm text-code-sm text-secondary">@mrt.ac.lk</span>,{' '}
-                  <span className="font-code-sm text-code-sm text-secondary">@pdn.ac.lk</span>)
+              <div className="w-full flex items-center justify-center gap-space-sm">
+                <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <path
+                    d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.65v3h3.88c2.27-2.09 3.665-5.17 3.665-9.09z"
+                    fill="#4285F4"
+                  />
+                  <path
+                    d="M12 24c3.24 0 5.95-1.08 7.93-2.91l-3.88-3c-1.08.72-2.45 1.16-4.05 1.16-3.12 0-5.77-2.1-6.72-4.93H1.26v3.1C3.25 21.36 7.33 24 12 24z"
+                    fill="#34A853"
+                  />
+                  <path
+                    d="M5.28 14.32c-.25-.72-.38-1.49-.38-2.32s.13-1.6.38-2.32V6.58H1.26A11.96 11.96 0 000 12c0 1.92.45 3.74 1.26 5.42l4.02-3.1z"
+                    fill="#FBBC05"
+                  />
+                  <path
+                    d="M12 4.75c1.77 0 3.35.61 4.6 1.8l3.42-3.42C17.95 1.19 15.24 0 12 0 7.33 0 3.25 2.64 1.26 6.58l4.02 3.1c.95-2.83 3.6-4.93 6.72-4.93z"
+                    fill="#EA4335"
+                  />
+                </svg>
+                <span className="font-headline-md text-headline-md text-on-surface">
+                  Continue with Google Workspace
                 </span>
-              </button>
-
-              {/* Tooltip */}
-              {showGoogleTooltip && (
-                <div className="absolute -top-12 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-md bg-brand-navy text-white text-xs font-medium shadow-level3 z-20 pointer-events-none whitespace-nowrap animate-fadeIn">
-                  Institutional Google Workspace SSO is coming soon!
-                  <div className="absolute bottom-[-5px] left-1/2 -translate-x-1/2 w-2 h-2 bg-brand-navy rotate-45" />
-                </div>
-              )}
-            </div>
+              </div>
+              <span className="font-label-sm text-label-sm text-on-surface-variant text-center mt-space-2xs">
+                Recommended for institutional Google accounts (
+                <span className="font-code-sm text-code-sm text-secondary">@cmb.ac.lk</span>,{' '}
+                <span className="font-code-sm text-code-sm text-secondary">@mrt.ac.lk</span>,{' '}
+                <span className="font-code-sm text-code-sm text-secondary">@pdn.ac.lk</span>)
+              </span>
+            </button>
           </div>
 
           {/* Divider */}

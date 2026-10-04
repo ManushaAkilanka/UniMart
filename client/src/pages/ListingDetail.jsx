@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getListingById } from '../utils/api';
+import { getListingById, createConversation, submitReport, claimListing, releaseClaim } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { cn } from '../utils/cn';
+import { Modal } from '../components/ui/Modal';
 
 const CONDITION_LABELS = {
   new: 'Brand New',
@@ -81,7 +82,14 @@ export const ListingDetail = () => {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [toggling, setToggling] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [reportVisible, setReportVisible] = useState(false);
+  const [reportModalOpen, setReportModalOpen] = useState(false);
+  const [reportReason, setReportReason] = useState('spam');
+  const [reportDetails, setReportDetails] = useState('');
+  const [reportSubmitting, setReportSubmitting] = useState(false);
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+  const [reportError, setReportError] = useState('');
+  const [claimLoading, setClaimLoading] = useState(false);
+  const [claimError, setClaimError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
@@ -112,12 +120,57 @@ export const ListingDetail = () => {
     });
   };
 
-  const handleMessage = () => {
+  const [messagingLoading, setMessagingLoading] = useState(false);
+
+  const handleMessage = async () => {
     if (!isAuthenticated) {
       navigate('/login');
       return;
     }
-    navigate('/messages');
+    if (!listing) return;
+    setMessagingLoading(true);
+    try {
+      const data = await createConversation(listing._id);
+      const convId = data.conversation?._id;
+      navigate(convId ? `/messages?conversation=${convId}` : '/messages');
+    } catch (err) {
+      // If 400 (own listing), just go to messages list
+      navigate('/messages');
+    } finally {
+      setMessagingLoading(false);
+    }
+  };
+
+  const handleClaim = async () => {
+    if (!isAuthenticated) { navigate('/login'); return; }
+    if (!listing) return;
+    setClaimLoading(true);
+    setClaimError('');
+    try {
+      const res = await claimListing(listing._id);
+      const convId = res.data?.conversationId;
+      // Update local listing state so UI reflects claimed status immediately
+      setListing((prev) => ({ ...prev, status: 'claimed', claimedBy: { _id: user._id } }));
+      navigate(convId ? `/messages?conversation=${convId}` : '/messages');
+    } catch (err) {
+      setClaimError(err.message || 'Could not claim this item. Please try again.');
+    } finally {
+      setClaimLoading(false);
+    }
+  };
+
+  const handleReleaseClaim = async () => {
+    if (!listing) return;
+    setClaimLoading(true);
+    setClaimError('');
+    try {
+      await releaseClaim(listing._id);
+      setListing((prev) => ({ ...prev, status: 'active', claimedBy: null }));
+    } catch (err) {
+      setClaimError(err.message || 'Could not release claim. Please try again.');
+    } finally {
+      setClaimLoading(false);
+    }
   };
 
   const saved = listing ? isFavorited(listing._id) : false;
@@ -131,6 +184,42 @@ export const ListingDetail = () => {
     setToggling(true);
     try { await toggle(listing._id); } catch { /**/ }
     finally { setToggling(false); }
+  };
+
+  const handleOpenReport = () => {
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    setReportError('');
+    setReportSubmitted(false);
+    setReportDetails('');
+    setReportReason('spam');
+    setReportModalOpen(true);
+  };
+
+  const handleReportSubmit = async (e) => {
+    e.preventDefault();
+    if (!listing) return;
+    setReportSubmitting(true);
+    setReportError('');
+    try {
+      await submitReport({
+        targetType: 'listing',
+        targetId: listing._id,
+        reason: reportReason,
+        details: reportDetails.trim() || undefined,
+      });
+      setReportSubmitted(true);
+      setTimeout(() => {
+        setReportModalOpen(false);
+        setReportSubmitted(false);
+      }, 2000);
+    } catch (err) {
+      setReportError(err.message || 'Failed to submit report. Please try again.');
+    } finally {
+      setReportSubmitting(false);
+    }
   };
 
   if (loading) {
@@ -170,6 +259,9 @@ export const ListingDetail = () => {
     price,
     priceMode,
     listingType,
+    budgetMin,
+    budgetMax,
+    urgency,
     condition,
     campus,
     meetupSpots,
@@ -179,7 +271,11 @@ export const ListingDetail = () => {
     viewCount,
     createdAt,
     status,
+    claimedBy,
   } = listing;
+
+  const isClaimed = status === 'claimed';
+  const isClaimer = isClaimed && user && claimedBy && (claimedBy._id || claimedBy) === user._id;
 
   const sellerName = sellerId?.fullName || 'Student';
   const sellerEmail = sellerId?.email || '';
@@ -258,8 +354,8 @@ export const ListingDetail = () => {
             </ol>
             <div className="hidden sm:flex items-center gap-space-sm">
               <span className="inline-flex items-center gap-space-2xs px-space-xs py-space-2xs rounded-full bg-surface-container font-code-sm text-code-sm text-on-surface-variant">
-                <span className="w-1.5 h-1.5 rounded-full bg-secondary" />
-                {status === 'active' ? ' Live Listing' : ` ${status}`}
+                <span className={cn('w-1.5 h-1.5 rounded-full', status === 'fulfilled' ? 'bg-amber-500' : 'bg-secondary')} />
+                {status === 'active' ? ' Live Listing' : status === 'fulfilled' ? ' Fulfilled' : ` ${status}`}
               </span>
             </div>
           </div>
@@ -285,6 +381,16 @@ export const ListingDetail = () => {
                       alt={title}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
+                  ) : listingType === 'wanted' ? (
+                    <div className="flex flex-col items-center gap-3 text-on-surface-variant p-8 text-center">
+                      <div className="w-16 h-16 rounded-2xl bg-amber-500/10 flex items-center justify-center text-amber-600">
+                        <span className="material-symbols-outlined text-4xl">campaign</span>
+                      </div>
+                      <p className="font-headline-sm text-headline-sm text-on-surface font-semibold">Campus Wanted Request</p>
+                      <p className="font-body-sm text-body-sm max-w-xs text-on-surface-variant">
+                        A student is actively looking to acquire this item. Got one? Reach out below!
+                      </p>
+                    </div>
                   ) : (
                     <div className="flex flex-col items-center gap-3 text-on-surface-variant">
                       <span className="material-symbols-outlined text-6xl">image_not_supported</span>
@@ -294,11 +400,24 @@ export const ListingDetail = () => {
 
                   {/* Badges */}
                   <div className="absolute top-space-md left-space-md flex flex-wrap gap-space-xs z-10">
-                    <span className="px-space-sm py-space-2xs rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm shadow-sm flex items-center gap-space-2xs">
-                      <span className="material-symbols-outlined text-sm">sell</span>
-                      {TYPE_LABELS[listingType] || listingType}
-                    </span>
-                    {condition && (
+                    {listingType === 'wanted' ? (
+                      <span className="px-space-sm py-space-2xs rounded-full bg-amber-600 text-white font-label-sm text-label-sm shadow-sm flex items-center gap-space-2xs">
+                        <span className="material-symbols-outlined text-sm">campaign</span>
+                        WANTED REQUEST
+                      </span>
+                    ) : (
+                      <span className="px-space-sm py-space-2xs rounded-full bg-secondary text-on-secondary font-label-sm text-label-sm shadow-sm flex items-center gap-space-2xs">
+                        <span className="material-symbols-outlined text-sm">sell</span>
+                        {TYPE_LABELS[listingType] || listingType}
+                      </span>
+                    )}
+                    {urgency && (
+                      <span className="px-space-sm py-space-2xs rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-800 dark:text-amber-200 border border-amber-300 dark:border-amber-800 font-label-sm text-label-sm capitalize flex items-center gap-1 shadow-sm">
+                        <span className="material-symbols-outlined text-xs">speed</span>
+                        {urgency.replace('-', ' ')}
+                      </span>
+                    )}
+                    {condition && listingType !== 'wanted' && (
                       <span
                         className={cn(
                           'px-space-sm py-space-2xs rounded-full font-label-sm text-label-sm shadow-sm backdrop-blur-sm',
@@ -380,9 +499,33 @@ export const ListingDetail = () => {
                   )}
                 </div>
 
-                {/* Price */}
+                {/* Price / Target Budget */}
                 <div className="flex flex-wrap items-baseline gap-space-md pt-space-xs">
-                  {listingType === 'free' ? (
+                  {listingType === 'wanted' ? (
+                    <div className="flex flex-col gap-1">
+                      <span className="font-label-sm text-label-sm text-amber-600 uppercase font-semibold tracking-wider">
+                        Target Budget
+                      </span>
+                      <div className="flex items-baseline gap-space-xs">
+                        {budgetMax ? (
+                          <>
+                            <span className="font-body-md text-body-md text-on-surface-variant font-medium">
+                              LKR
+                            </span>
+                            <span className="text-[28px] font-bold text-on-surface tracking-tight tabular-nums">
+                              {budgetMin
+                                ? `Rs. ${budgetMin.toLocaleString('en-LK')} - ${budgetMax.toLocaleString('en-LK')}`
+                                : `Up to Rs. ${budgetMax.toLocaleString('en-LK')}`}
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-[28px] font-bold text-on-surface tracking-tight">
+                            Open to Offers
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : listingType === 'free' ? (
                     <span className="text-[28px] font-bold text-secondary leading-tight">FREE</span>
                   ) : (
                     <div className="flex items-baseline gap-space-xs">
@@ -394,7 +537,7 @@ export const ListingDetail = () => {
                       </span>
                     </div>
                   )}
-                  {priceMode === 'negotiable' && (
+                  {priceMode === 'negotiable' && listingType !== 'wanted' && (
                     <span className="px-space-sm py-space-2xs rounded-full bg-surface-container-high text-on-surface font-label-md text-label-md">
                       Negotiable on Handover
                     </span>
@@ -406,14 +549,16 @@ export const ListingDetail = () => {
                   {[
                     { label: 'Category', value: categoryId?.name || '—' },
                     { label: 'Total Views', value: viewCount != null ? `${viewCount} views` : '—' },
-                    { label: 'Condition', value: CONDITION_LABELS[condition] || condition || 'N/A', highlight: true },
+                    listingType === 'wanted'
+                      ? { label: 'Urgency', value: urgency ? urgency.replace('-', ' ') : 'Flexible', highlight: true }
+                      : { label: 'Condition', value: CONDITION_LABELS[condition] || condition || 'N/A', highlight: true },
                     { label: 'Campus', value: campus || '—' },
                   ].map(({ label, value, highlight }) => (
                     <div key={label} className="flex flex-col">
                       <span className="font-label-sm text-label-sm text-on-surface-variant">{label}</span>
                       <span
                         className={cn(
-                          'font-headline-sm text-headline-sm',
+                          'font-headline-sm text-headline-sm capitalize',
                           highlight ? 'text-secondary font-semibold' : 'text-on-surface'
                         )}
                       >
@@ -472,31 +617,106 @@ export const ListingDetail = () => {
               {/* Action buttons */}
               <div className="bg-surface-container-lowest rounded-xl shadow-sm p-space-lg flex flex-col gap-space-md">
                 {isOwner ? (
-                  <div className="rounded-lg bg-surface-container-low p-space-md text-center">
-                    <p className="font-headline-sm text-headline-sm text-on-surface font-semibold mb-1">
+                  <div className="rounded-lg bg-surface-container-low p-space-md text-center flex flex-col gap-space-sm">
+                    <p className="font-headline-sm text-headline-sm text-on-surface font-semibold">
                       This is your listing
                     </p>
+                    {isClaimed && listingType === 'free' && (
+                      <>
+                        <div className="flex items-center justify-center gap-1 text-amber-700 dark:text-amber-300 font-label-sm text-label-sm">
+                          <span className="material-symbols-outlined text-sm">lock</span>
+                          <span>Claimed by a student</span>
+                        </div>
+                        {claimError && (
+                          <p className="text-error font-body-sm text-body-sm">{claimError}</p>
+                        )}
+                        <button
+                          onClick={handleReleaseClaim}
+                          disabled={claimLoading}
+                          type="button"
+                          className="w-full h-9 rounded-lg border border-amber-400 text-amber-700 dark:text-amber-300 font-headline-sm text-headline-sm hover:bg-amber-50 dark:hover:bg-amber-950/30 transition-all flex items-center justify-center gap-1.5 disabled:opacity-60"
+                        >
+                          <span className={cn('material-symbols-outlined text-base', claimLoading && 'animate-spin')}>
+                            {claimLoading ? 'progress_activity' : 'lock_open'}
+                          </span>
+                          {claimLoading ? 'Releasing…' : 'Release Claim'}
+                        </button>
+                      </>
+                    )}
                     <p className="font-body-sm text-body-sm text-on-surface-variant">
                       Manage it from your dashboard.
                     </p>
                     <Link
                       to="/dashboard"
-                      className="mt-space-sm inline-flex items-center gap-1 text-secondary font-headline-sm text-headline-sm hover:underline"
+                      className="inline-flex items-center justify-center gap-1 text-secondary font-headline-sm text-headline-sm hover:underline"
                     >
                       Go to Dashboard →
                     </Link>
                   </div>
                 ) : (
                   <>
-                    {/* Message Seller CTA */}
-                    <button
-                      onClick={handleMessage}
-                      type="button"
-                      className="w-full h-12 rounded-lg bg-secondary text-on-secondary font-headline-md text-headline-md hover:bg-secondary/90 transition-all shadow-sm flex items-center justify-center gap-2"
-                    >
-                      <span className="material-symbols-outlined">chat_bubble</span>
-                      Message Seller
-                    </button>
+                    {/* Claim error */}
+                    {claimError && (
+                      <p className="text-error font-body-sm text-body-sm text-center">{claimError}</p>
+                    )}
+
+                    {listingType === 'free' ? (
+                      /* ── Free listing: Claim CTA ────────────────────────── */
+                      isClaimed ? (
+                        <div className="rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800 p-space-md text-center">
+                          <span className="material-symbols-outlined text-amber-600 text-3xl">lock</span>
+                          <p className="font-headline-sm text-headline-sm text-amber-800 dark:text-amber-300 font-semibold mt-1">
+                            {isClaimer ? 'You have claimed this item!' : 'Already Claimed'}
+                          </p>
+                          <p className="font-body-sm text-body-sm text-on-surface-variant mt-0.5">
+                            {isClaimer
+                              ? 'Check your messages to arrange pickup.'
+                              : 'Someone else has reserved this free item.'}
+                          </p>
+                          {isClaimer && (
+                            <button
+                              onClick={() => navigate('/messages')}
+                              className="mt-space-sm inline-flex items-center gap-1 text-secondary font-headline-sm text-headline-sm hover:underline"
+                            >
+                              Go to Messages →
+                            </button>
+                          )}
+                        </div>
+                      ) : (
+                        <button
+                          onClick={handleClaim}
+                          type="button"
+                          disabled={claimLoading}
+                          className="w-full h-12 rounded-lg bg-secondary text-on-secondary font-headline-md text-headline-md hover:bg-secondary/90 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                        >
+                          <span className={cn('material-symbols-outlined', claimLoading && 'animate-spin')}>
+                            {claimLoading ? 'progress_activity' : 'volunteer_activism'}
+                          </span>
+                          {claimLoading ? 'Claiming…' : 'Claim This Item · It\'s Free!'}
+                        </button>
+                      )
+                    ) : (
+                      /* ── Regular / wanted: Message CTA ──────────────────── */
+                      <button
+                        onClick={handleMessage}
+                        type="button"
+                        disabled={messagingLoading}
+                        className="w-full h-12 rounded-lg bg-secondary text-on-secondary font-headline-md text-headline-md hover:bg-secondary/90 transition-all shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
+                      >
+                        <span className={cn('material-symbols-outlined', messagingLoading && 'animate-spin')}>
+                          {messagingLoading
+                            ? 'progress_activity'
+                            : listingType === 'wanted'
+                            ? 'handshake'
+                            : 'chat_bubble'}
+                        </span>
+                        {messagingLoading
+                          ? 'Opening Chat…'
+                          : listingType === 'wanted'
+                          ? 'I Have This Item · Message Requester'
+                          : 'Message Seller'}
+                      </button>
+                    )}
 
                     {/* Save + Share */}
                     <div className="flex gap-space-sm">
@@ -536,7 +756,7 @@ export const ListingDetail = () => {
                 {/* Seller card */}
                 <div className="flex flex-col gap-space-md">
                   <h3 className="font-headline-sm text-headline-sm text-on-surface font-semibold uppercase tracking-wider text-on-surface-variant">
-                    Listed by
+                    {listingType === 'wanted' ? 'Requested by' : 'Listed by'}
                   </h3>
                   <div className="flex items-center gap-space-md">
                     <div className="relative shrink-0">
@@ -602,20 +822,13 @@ export const ListingDetail = () => {
 
                 {/* Report */}
                 <button
-                  onClick={() => setReportVisible((v) => !v)}
+                  onClick={handleOpenReport}
                   type="button"
-                  className="text-on-surface-variant font-body-sm text-body-sm hover:text-error transition-colors flex items-center gap-1 self-start"
+                  className="text-on-surface-variant font-body-sm text-body-sm hover:text-error transition-colors flex items-center gap-1.5 self-start"
                 >
-                  <span className="material-symbols-outlined text-sm">flag</span>
+                  <span className="material-symbols-outlined text-base">flag</span>
                   Report this listing
                 </button>
-
-                {reportVisible && (
-                  <div className="rounded-lg bg-error/5 border border-error/20 p-space-sm text-[13px] text-on-surface-variant">
-                    Reporting will be available soon. For urgent issues, contact{' '}
-                    <strong>support@unimart.lk</strong>.
-                  </div>
-                )}
               </div>
 
               {/* Safety reminder card */}
@@ -637,6 +850,94 @@ export const ListingDetail = () => {
           </div>
         </div>
       </div>
+
+      {/* Report Listing Modal */}
+      <Modal
+        isOpen={reportModalOpen}
+        onClose={() => setReportModalOpen(false)}
+        title="Report this Listing"
+        subtitle="Help keep our university marketplace safe and trustworthy"
+      >
+        {reportSubmitted ? (
+          <div className="py-6 flex flex-col items-center text-center gap-3">
+            <span className="material-symbols-outlined text-4xl text-secondary">
+              check_circle
+            </span>
+            <p className="font-headline-md text-headline-md text-on-surface">
+              Report Submitted
+            </p>
+            <p className="font-body-md text-body-md text-on-surface-variant max-w-sm">
+              Thank you for keeping campus safe. Our moderators will review this listing shortly.
+            </p>
+          </div>
+        ) : (
+          <form onSubmit={handleReportSubmit} className="flex flex-col gap-4">
+            {reportError && (
+              <div className="p-3 rounded-lg bg-error/10 border border-error/20 text-error font-body-sm text-body-sm">
+                {reportError}
+              </div>
+            )}
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-label-md text-label-md text-on-surface font-medium">
+                Reason for reporting
+              </label>
+              <select
+                value={reportReason}
+                onChange={(e) => setReportReason(e.target.value)}
+                className="w-full h-11 px-3 rounded-lg bg-surface-container border border-outline-variant/30 font-body-md text-body-md text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary/30"
+              >
+                <option value="spam">Spam or unwanted advertising</option>
+                <option value="inappropriate_content">Inappropriate or offensive content</option>
+                <option value="prohibited_item">Prohibited or dangerous item</option>
+                <option value="fraud">Suspected scam or counterfeit item</option>
+                <option value="misleading_information">Misleading description or condition</option>
+                <option value="harassment">Harassment or abusive behavior</option>
+                <option value="other">Other issue</option>
+              </select>
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <label className="font-label-md text-label-md text-on-surface font-medium">
+                Additional details (optional)
+              </label>
+              <textarea
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+                maxLength={1000}
+                rows={3}
+                placeholder="Provide additional context to help moderators evaluate..."
+                className="w-full p-3 rounded-lg bg-surface-container border border-outline-variant/30 font-body-md text-body-md text-on-surface placeholder:text-on-surface-variant focus:outline-none focus:ring-2 focus:ring-secondary/30 resize-none"
+              />
+              <span className="font-label-sm text-label-sm text-on-surface-variant self-end">
+                {reportDetails.length}/1000
+              </span>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2 border-t border-outline-variant/20">
+              <button
+                type="button"
+                onClick={() => setReportModalOpen(false)}
+                className="px-4 py-2 rounded-lg border border-outline-variant/30 text-on-surface font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={reportSubmitting}
+                className="px-4 py-2 rounded-lg bg-error text-on-error font-headline-sm text-headline-sm hover:bg-error/90 transition-colors disabled:opacity-60 flex items-center gap-1.5"
+              >
+                {reportSubmitting && (
+                  <span className="material-symbols-outlined text-sm animate-spin">
+                    progress_activity
+                  </span>
+                )}
+                Submit Report
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </>
   );
 };

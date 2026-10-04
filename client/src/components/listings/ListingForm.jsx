@@ -72,6 +72,13 @@ export const ListingForm = ({
   const [price, setPrice] = useState(
     initialData?.price !== undefined ? initialData.price.toString() : ''
   );
+  const [budgetMin, setBudgetMin] = useState(
+    initialData?.budgetMin !== undefined ? initialData.budgetMin.toString() : ''
+  );
+  const [budgetMax, setBudgetMax] = useState(
+    initialData?.budgetMax !== undefined ? initialData.budgetMax.toString() : (initialData?.price ? initialData.price.toString() : '')
+  );
+  const [urgency, setUrgency] = useState(initialData?.urgency || 'flexible');
   const [priceMode, setPriceMode] = useState(initialData?.priceMode || 'fixed');
   const [condition, setCondition] = useState(initialData?.condition || 'used-good');
   const [campus, setCampus] = useState(initialData?.campus || user?.campus || 'University of Colombo');
@@ -275,15 +282,21 @@ export const ListingForm = ({
       errors.listingType = 'Please select a listing type';
     }
 
-    if (listingType !== 'free' && listingType !== 'wanted') {
-      const parsedPrice = parseFloat(price);
-      if (isNaN(parsedPrice) || parsedPrice <= 0) {
-        errors.price = 'Please enter a valid asking price greater than 0';
+    if (listingType !== 'wanted') {
+      if (images.length === 0) {
+        errors.images = 'Please upload at least 1 photo of the item';
       }
-    }
 
-    if (listingType !== 'wanted' && !condition) {
-      errors.condition = 'Condition is required for items being listed';
+      if (listingType !== 'free') {
+        const parsedPrice = parseFloat(price);
+        if (isNaN(parsedPrice) || parsedPrice <= 0) {
+          errors.price = 'Please enter a valid asking price greater than 0';
+        }
+      }
+
+      if (!condition) {
+        errors.condition = 'Condition is required for items being listed';
+      }
     }
 
     if (!campus.trim()) {
@@ -309,28 +322,37 @@ export const ListingForm = ({
     formData.append('description', description.trim());
     formData.append('categoryId', categoryId);
     formData.append('listingType', listingType);
-    formData.append('price', listingType === 'free' ? 0 : parseFloat(price) || 0);
-    formData.append('priceMode', priceMode);
     formData.append('currency', 'LKR');
-    if (listingType !== 'wanted') {
-      formData.append('condition', condition);
-    }
     formData.append('campus', campus.trim());
     formData.append('meetupSpots', JSON.stringify(selectedSpots));
 
-    // Separate existing images from newly uploaded files
-    const existingImages = images.filter((img) => img.isExisting).map((img) => ({
-      url: img.url,
-      publicId: img.publicId,
-    }));
-    formData.append('images', JSON.stringify(existingImages));
+    if (listingType === 'wanted') {
+      const bMin = parseFloat(budgetMin) || 0;
+      const bMax = parseFloat(budgetMax) || parseFloat(price) || 0;
+      formData.append('budgetMin', bMin);
+      formData.append('budgetMax', bMax);
+      formData.append('price', bMax);
+      formData.append('urgency', urgency);
+      formData.append('images', JSON.stringify([]));
+    } else {
+      formData.append('price', listingType === 'free' ? 0 : parseFloat(price) || 0);
+      formData.append('priceMode', priceMode);
+      formData.append('condition', condition);
 
-    // Append raw files for multer
-    images.forEach((img) => {
-      if (!img.isExisting && img.file) {
-        formData.append('images', img.file);
-      }
-    });
+      // Separate existing images from newly uploaded files
+      const existingImages = images.filter((img) => img.isExisting).map((img) => ({
+        url: img.url,
+        publicId: img.publicId,
+      }));
+      formData.append('images', JSON.stringify(existingImages));
+
+      // Append raw files for multer
+      images.forEach((img) => {
+        if (!img.isExisting && img.file) {
+          formData.append('images', img.file);
+        }
+      });
+    }
 
     await onSubmit(formData);
   };
@@ -433,33 +455,41 @@ export const ListingForm = ({
         <form onSubmit={handleSubmit} className="grid grid-cols-1 lg:grid-cols-12 gap-space-xl items-start">
           {/* ── LEFT COLUMN: 8 COLS ────────────────────────────────────────── */}
           <div className="lg:col-span-8 flex flex-col gap-space-xl">
-            {/* ── SECTION 1: PHOTOS ───────────────────────────────────────── */}
-            <section className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col gap-space-md">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-space-xs">
-                  <span className="flex items-center justify-center w-7 h-7 rounded-md bg-surface-container text-on-surface font-semibold text-xs">
-                    01
-                  </span>
-                  <div>
-                    <h2 className="font-headline-lg text-headline-lg text-on-surface">
-                      Photos & Visual Inspection
-                    </h2>
-                    <p className="font-body-sm text-body-sm text-on-surface-variant">
-                      Upload up to 6 clear daylight photos. The first image serves as the primary cover.
-                    </p>
+            {/* ── SECTION 1: PHOTOS (Hidden for Wanted Requests) ───────────── */}
+            {listingType !== 'wanted' && (
+              <section className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col gap-space-md">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-space-xs">
+                    <span className="flex items-center justify-center w-7 h-7 rounded-md bg-surface-container text-on-surface font-semibold text-xs">
+                      01
+                    </span>
+                    <div>
+                      <h2 className="font-headline-lg text-headline-lg text-on-surface">
+                        Photos & Visual Inspection
+                      </h2>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">
+                        Upload up to 6 clear daylight photos. The first image serves as the primary cover.
+                      </p>
+                    </div>
                   </div>
+                  <span className="px-2.5 py-1 rounded-full bg-secondary-container/40 text-secondary font-label-sm text-label-sm font-semibold">
+                    {images.length} / 6 Uploaded
+                  </span>
                 </div>
-                <span className="px-2.5 py-1 rounded-full bg-secondary-container/40 text-secondary font-label-sm text-label-sm font-semibold">
-                  {images.length} / 6 Uploaded
-                </span>
-              </div>
 
-              {uploadError && (
-                <div className="p-space-sm rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-center gap-2">
-                  <span className="material-symbols-outlined text-sm">warning</span>
-                  <span>{uploadError}</span>
-                </div>
-              )}
+                {uploadError && (
+                  <div className="p-space-sm rounded-lg bg-error-container text-on-error-container font-body-sm text-body-sm flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">warning</span>
+                    <span>{uploadError}</span>
+                  </div>
+                )}
+
+                {validationErrors.images && (
+                  <div className="p-space-sm rounded-lg bg-error/10 border border-error/20 text-error font-body-sm text-body-sm flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm">error</span>
+                    <span>{validationErrors.images}</span>
+                  </div>
+                )}
 
               {/* Drag & Drop Area */}
               {images.length < 6 && (
@@ -586,6 +616,7 @@ export const ListingForm = ({
                 </div>
               )}
             </section>
+          )}
 
             {/* ── SECTION 2: ITEM CLASSIFICATION & TITLE ──────────────────── */}
             <section className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col gap-space-md">
@@ -759,14 +790,16 @@ export const ListingForm = ({
             <section className="bg-surface-container-lowest rounded-xl p-space-lg shadow-sm border border-outline-variant/20 flex flex-col gap-space-md">
               <div className="flex items-center gap-space-xs">
                 <span className="flex items-center justify-center w-7 h-7 rounded-md bg-surface-container text-on-surface font-semibold text-xs">
-                  03
+                  {listingType === 'wanted' ? '02' : '03'}
                 </span>
                 <div>
                   <h2 className="font-headline-lg text-headline-lg text-on-surface">
-                    Pricing & Negotiation Mode
+                    {listingType === 'wanted' ? 'Budget & Urgency' : 'Pricing & Negotiation Mode'}
                   </h2>
                   <p className="font-body-sm text-body-sm text-on-surface-variant">
-                    Set transparent student pricing in Sri Lankan Rupees (LKR).
+                    {listingType === 'wanted'
+                      ? 'Specify your target budget (optional) and timeframe so peers can respond accordingly.'
+                      : 'Set transparent student pricing in Sri Lankan Rupees (LKR).'}
                   </p>
                 </div>
               </div>
@@ -784,15 +817,62 @@ export const ListingForm = ({
                   </div>
                 </div>
               ) : listingType === 'wanted' ? (
-                <div className="p-space-md rounded-lg bg-surface-container-low border border-outline-variant/20 flex items-center gap-space-sm">
-                  <span className="material-symbols-outlined text-secondary text-2xl">campaign</span>
-                  <div className="flex flex-col">
-                    <span className="font-headline-sm text-headline-sm text-on-surface font-semibold">
-                      Wanted / Request Listing
-                    </span>
-                    <span className="font-body-sm text-body-sm text-on-surface-variant">
-                      Specify an estimated acquisition budget or leave blank to negotiate with potential student sellers.
-                    </span>
+                <div className="flex flex-col gap-space-md">
+                  <div className="grid grid-cols-1 md:grid-cols-12 gap-space-md items-start">
+                    {/* Budget Max */}
+                    <div className="md:col-span-6 flex flex-col gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="font-headline-sm text-headline-sm text-on-surface" htmlFor="budget-input">
+                          Target Budget <span className="font-body-sm text-on-surface-variant text-xs">(Optional)</span>
+                        </label>
+                      </div>
+                      <div className="relative flex items-center">
+                        <span className="absolute left-3.5 font-headline-sm text-headline-sm text-on-surface-variant font-semibold select-none">
+                          LKR (Rs.)
+                        </span>
+                        <input
+                          id="budget-input"
+                          type="number"
+                          min="0"
+                          step="100"
+                          value={budgetMax}
+                          onChange={(e) => {
+                            setBudgetMax(e.target.value);
+                            setPrice(e.target.value);
+                          }}
+                          placeholder="e.g., 3500 (Open to offers)"
+                          className="w-full h-12 pl-24 pr-space-md rounded-lg bg-surface-container-low text-on-surface font-headline-lg text-headline-lg border border-outline-variant/30 focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-secondary transition-all"
+                        />
+                      </div>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">
+                        Leave blank if you are open to any reasonable student price offers.
+                      </p>
+                    </div>
+
+                    {/* Urgency / Timeframe */}
+                    <div className="md:col-span-6 flex flex-col gap-1.5">
+                      <label className="font-headline-sm text-headline-sm text-on-surface" htmlFor="urgency-input">
+                        Urgency / Timeframe
+                      </label>
+                      <select
+                        id="urgency-input"
+                        value={urgency}
+                        onChange={(e) => setUrgency(e.target.value)}
+                        className="w-full h-12 px-space-md rounded-lg bg-surface-container-low text-on-surface font-body-md text-body-md border border-outline-variant/30 focus:outline-none focus:bg-surface-container-lowest focus:ring-2 focus:ring-secondary transition-all"
+                      >
+                        <option value="urgent">⚡ Urgent — Need within 1-2 days / Exam imminent</option>
+                        <option value="this-week">📅 This Week — Need within 7 days</option>
+                        <option value="flexible">🌱 Flexible — Anytime this semester</option>
+                      </select>
+                      <p className="font-body-sm text-body-sm text-on-surface-variant">
+                        Urgent requests are badged prominently to alert campus peers quickly.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="p-space-sm rounded-lg bg-secondary-container/20 border border-secondary/20 flex items-center gap-space-sm text-body-sm text-on-surface">
+                    <span className="material-symbols-outlined text-secondary text-lg">info</span>
+                    <span>Students with this item can message you directly from this request.</span>
                   </div>
                 </div>
               ) : (
@@ -1072,7 +1152,19 @@ export const ListingForm = ({
               {/* Card visual */}
               <div className="rounded-xl overflow-hidden bg-surface-container-low border border-outline-variant/20 shadow-sm flex flex-col">
                 <div className="relative aspect-[4/3] bg-surface-container-high overflow-hidden">
-                  {images[0] ? (
+                  {listingType === 'wanted' ? (
+                    <div className="w-full h-full bg-gradient-to-br from-amber-50 to-amber-100 flex flex-col items-center justify-center p-4 text-center border-b border-amber-200/50">
+                      <div className="w-12 h-12 rounded-full bg-amber-200/80 text-amber-800 flex items-center justify-center mb-2 shadow-sm">
+                        <span className="material-symbols-outlined text-2xl">campaign</span>
+                      </div>
+                      <span className="font-headline-sm text-xs font-bold text-amber-900 uppercase tracking-wider">
+                        Student Wanted Request
+                      </span>
+                      <span className="font-body-sm text-[11px] text-amber-800/80 mt-0.5 line-clamp-1">
+                        Looking to acquire from peer
+                      </span>
+                    </div>
+                  ) : images[0] ? (
                     <img
                       src={images[0].url}
                       alt="Preview Cover"
@@ -1087,22 +1179,36 @@ export const ListingForm = ({
 
                   {/* Badges */}
                   <div className="absolute top-2 left-2 flex gap-1">
-                    {listingType !== 'wanted' && condition && (
-                      <span className="px-2 py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-sm text-secondary font-label-sm text-[11px] font-semibold shadow-sm">
-                        {CONDITIONS.find((c) => c.value === condition)?.label || condition}
+                    {listingType === 'wanted' ? (
+                      <span className="px-2 py-0.5 rounded bg-amber-600 text-white font-label-sm text-[11px] font-bold shadow-sm flex items-center gap-1">
+                        <span className="material-symbols-outlined text-xs">campaign</span>
+                        WANTED
                       </span>
+                    ) : (
+                      condition && (
+                        <span className="px-2 py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-sm text-secondary font-label-sm text-[11px] font-semibold shadow-sm">
+                          {CONDITIONS.find((c) => c.value === condition)?.label || condition}
+                        </span>
+                      )
                     )}
                     <span className="px-2 py-0.5 rounded bg-surface-container-lowest/90 backdrop-blur-sm text-on-surface font-label-sm text-[11px] shadow-sm">
                       {campus?.split(' ')[0] || 'Campus'}
                     </span>
                   </div>
 
-                  {/* Price Tag */}
-                  <span className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-primary-container text-on-primary font-headline-sm text-headline-sm font-bold shadow-md">
+                  {/* Price / Budget Tag */}
+                  <span className={cn(
+                    'absolute bottom-2 right-2 px-2.5 py-1 rounded-lg font-headline-sm text-headline-sm font-bold shadow-md',
+                    listingType === 'wanted'
+                      ? 'bg-amber-100 text-amber-950 border border-amber-300'
+                      : 'bg-primary-container text-on-primary'
+                  )}>
                     {listingType === 'free'
                       ? 'FREE'
                       : listingType === 'wanted'
-                      ? 'Wanted'
+                      ? budgetMax
+                        ? `Budget: Rs. ${Number(budgetMax).toLocaleString('en-LK')}`
+                        : 'Open to Offers'
                       : price
                       ? `Rs. ${Number(price).toLocaleString('en-LK')}`
                       : 'Rs. 0'}
@@ -1110,6 +1216,26 @@ export const ListingForm = ({
                 </div>
 
                 <div className="p-space-sm flex flex-col gap-1.5 bg-surface-container-lowest">
+                  {listingType === 'wanted' && (
+                    <div className="flex items-center justify-between">
+                      <span className="font-label-sm text-[10px] uppercase font-bold text-amber-800 tracking-wider">
+                        Looking for:
+                      </span>
+                      {urgency && (
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded text-[10px] font-bold',
+                          urgency === 'urgent'
+                            ? 'bg-red-100 text-red-700'
+                            : urgency === 'this-week'
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-emerald-100 text-emerald-700'
+                        )}>
+                          {urgency === 'urgent' ? '⚡ Urgent' : urgency === 'this-week' ? '📅 This Week' : '🌱 Flexible'}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   <h3 className="font-headline-sm text-headline-sm text-on-surface line-clamp-2 leading-snug">
                     {title || 'Listing Title will appear here...'}
                   </h3>

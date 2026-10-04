@@ -22,6 +22,7 @@ import { User, Category, Listing } from '../models/index.js';
 // Mock the email service so no real emails are sent during tests
 vi.mock('../services/email.service.js', () => ({
   sendVerificationEmail: vi.fn().mockResolvedValue({ messageId: 'test-123' }),
+  sendNotificationEmail: vi.fn().mockResolvedValue({ messageId: 'test-notif-123' }),
 }));
 
 // ── Test Fixtures ─────────────────────────────────────────────────────────────

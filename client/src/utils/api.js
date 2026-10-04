@@ -85,6 +85,16 @@ export function deleteListing(id) {
   });
 }
 
+/** POST /api/listings/:id/claim — claim a free listing */
+export function claimListing(id) {
+  return request(`/listings/${id}/claim`, { method: 'POST' });
+}
+
+/** POST /api/listings/:id/release-claim — owner releases an existing claim */
+export function releaseClaim(id) {
+  return request(`/listings/${id}/release-claim`, { method: 'POST' });
+}
+
 // ── Categories ────────────────────────────────────────────────────────────────
 
 /** GET /api/categories */
@@ -144,5 +154,195 @@ export function getSellerProfile(userId) {
 export function getSellerListings(userId, params = {}) {
   const qs = new URLSearchParams(params).toString();
   return request(`/users/${userId}/listings${qs ? `?${qs}` : ''}`);
+}
+
+// ── Conversations & Messages ──────────────────────────────────────────────────
+
+/** GET /api/conversations */
+export function getConversations() {
+  return request('/conversations');
+}
+
+/** GET /api/conversations/unread-count */
+export function getUnreadMessageCount() {
+  return request('/conversations/unread-count');
+}
+
+/** POST /api/conversations */
+export function createConversation(listingId) {
+  return request('/conversations', {
+    method: 'POST',
+    body: JSON.stringify({ listingId }),
+  });
+}
+
+/** GET /api/conversations/:id/messages */
+export function getConversationMessages(id) {
+  return request(`/conversations/${id}/messages`);
+}
+
+/** POST /api/conversations/:id/messages */
+export function sendMessage(id, data) {
+  return request(`/conversations/${id}/messages`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/** PATCH /api/conversations/:id/messages/:messageId/proposal */
+export function respondToProposal(id, messageId, status) {
+  return request(`/conversations/${id}/messages/${messageId}/proposal`, {
+    method: 'PATCH',
+    body: JSON.stringify({ status }),
+  });
+}
+
+// ── Safety & Moderation (Block & Report) ──────────────────────────────────────
+
+/** POST /api/users/:id/block */
+export function blockUser(userId) {
+  return request(`/users/${userId}/block`, {
+    method: 'POST',
+  });
+}
+
+/** POST /api/users/:id/unblock */
+export function unblockUser(userId) {
+  return request(`/users/${userId}/unblock`, {
+    method: 'POST',
+  });
+}
+
+/** GET /api/users/blocked */
+export function getBlockedUsers() {
+  return request('/users/blocked');
+}
+
+/** POST /api/reports */
+export function submitReport(data) {
+  return request('/reports', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+// ── Admin / Moderation ────────────────────────────────────────────────────────
+
+/** GET /api/admin/stats */
+export function getAdminStats() {
+  return request('/admin/stats');
+}
+
+/** GET /api/admin/reports */
+export function getAdminReports(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
+  ).toString();
+  return request(`/admin/reports${qs ? `?${qs}` : ''}`);
+}
+
+/** GET /api/admin/reports/:id */
+export function getAdminReportById(id) {
+  return request(`/admin/reports/${id}`);
+}
+
+/** PATCH /api/admin/reports/:id */
+export function updateReport(id, data) {
+  return request(`/admin/reports/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(data),
+  });
+}
+
+/** GET /api/admin/users */
+export function getAdminUsers(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
+  ).toString();
+  return request(`/admin/users${qs ? `?${qs}` : ''}`);
+}
+
+/** GET /api/admin/users/:id */
+export function getAdminUserById(id) {
+  return request(`/admin/users/${id}`);
+}
+
+/** PATCH /api/admin/users/:id/suspend */
+export function adminSuspendUser(id, reason) {
+  return request(`/admin/users/${id}/suspend`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/** PATCH /api/admin/users/:id/unsuspend */
+export function adminUnsuspendUser(id) {
+  return request(`/admin/users/${id}/unsuspend`, { method: 'PATCH' });
+}
+
+/** PATCH /api/admin/users/:id/role */
+export function changeUserRole(id, role) {
+  return request(`/admin/users/${id}/role`, {
+    method: 'PATCH',
+    body: JSON.stringify({ role }),
+  });
+}
+
+/** GET /api/admin/listings */
+export function getAdminListings(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
+  ).toString();
+  return request(`/admin/listings${qs ? `?${qs}` : ''}`);
+}
+
+/** PATCH /api/admin/listings/:id/hide */
+export function adminHideListing(id, reason) {
+  return request(`/admin/listings/${id}/hide`, {
+    method: 'PATCH',
+    body: JSON.stringify({ reason }),
+  });
+}
+
+/** PATCH /api/admin/listings/:id/approve */
+export function adminApproveListing(id) {
+  return request(`/admin/listings/${id}/approve`, { method: 'PATCH' });
+}
+
+/** GET /api/admin/verification-queue */
+export function getVerificationQueue(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/admin/verification-queue${qs ? `?${qs}` : ''}`);
+}
+
+/** PATCH /api/admin/verification-queue/:id/approve */
+export function approveVerification(id) {
+  return request(`/admin/verification-queue/${id}/approve`, { method: 'PATCH' });
+}
+
+/** GET /api/admin/audit-log */
+export function getAuditLog(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
+  ).toString();
+  return request(`/admin/audit-log${qs ? `?${qs}` : ''}`);
+}
+
+// ── Notifications ─────────────────────────────────────────────────────────────
+
+/** GET /api/notifications */
+export function getNotifications(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/notifications${qs ? `?${qs}` : ''}`);
+}
+
+/** PATCH /api/notifications/:id/read */
+export function markNotificationRead(id) {
+  return request(`/notifications/${id}/read`, { method: 'PATCH' });
+}
+
+/** PATCH /api/notifications/read-all */
+export function markAllNotificationsRead() {
+  return request('/notifications/read-all', { method: 'PATCH' });
 }
 

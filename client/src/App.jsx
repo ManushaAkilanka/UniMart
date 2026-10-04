@@ -1,6 +1,7 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { SocketProvider } from './context/SocketContext';
 import { FavoritesProvider } from './context/FavoritesContext';
 import { PageLayout } from './components/layout/PageLayout';
 import { ProtectedRoute } from './components/auth/ProtectedRoute';
@@ -18,6 +19,8 @@ import { MyListings } from './pages/MyListings';
 import { Favorites } from './pages/Favorites';
 import { Profile } from './pages/Profile';
 import { SellerProfile } from './pages/SellerProfile';
+import { Messages } from './pages/Messages';
+import { ModerationConsole } from './pages/ModerationConsole';
 
 const PlaceholderPage = ({ title, description }) => (
   <div className="flex flex-col items-center justify-center text-center py-space-3xl gap-space-md">
@@ -50,12 +53,15 @@ const HomeRedirect = () => {
 export default function App() {
   return (
     <AuthProvider>
-      <FavoritesProvider>
+      <SocketProvider>
+        <FavoritesProvider>
         {/* Pages that need full-bleed layout (no max-w padding wrapper) */}
         <Routes>
           {/* Auth pages – no layout chrome */}
           <Route path="/login" element={<SignIn />} />
+          <Route path="/signin" element={<SignIn />} />
           <Route path="/register" element={<SignUp />} />
+          <Route path="/signup" element={<SignUp />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
 
           {/* Full-bleed marketplace pages */}
@@ -178,16 +184,24 @@ export default function App() {
           <Route
             path="/messages"
             element={
-              <PageLayout>
+              <PageLayout fullWidth>
                 <ProtectedRoute>
-                  <PlaceholderPage
-                    title="Student Chat & Meetup Messages"
-                    description="Direct peer-to-peer messaging coming soon."
-                  />
+                  <Messages />
                 </ProtectedRoute>
               </PageLayout>
             }
           />
+          <Route
+            path="/moderation"
+            element={
+              <PageLayout fullWidth>
+                <ProtectedRoute allowedRoles={['moderator', 'admin']}>
+                  <ModerationConsole />
+                </ProtectedRoute>
+              </PageLayout>
+            }
+          />
+          <Route path="/admin" element={<Navigate to="/moderation" replace />} />
 
           {/* Public padded pages */}
           <Route path="/design-check" element={<PageLayout><DesignCheck /></PageLayout>} />
@@ -220,6 +234,7 @@ export default function App() {
           <Route path="*" element={<Navigate to="/browse" replace />} />
         </Routes>
       </FavoritesProvider>
+      </SocketProvider>
     </AuthProvider>
   );
 }

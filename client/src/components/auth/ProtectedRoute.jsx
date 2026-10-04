@@ -2,7 +2,7 @@ import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-export const ProtectedRoute = ({ children, requireVerified = false }) => {
+export const ProtectedRoute = ({ children, requireVerified = false, allowedRoles = [] }) => {
   const { user, loading, isAuthenticated } = useAuth();
   const location = useLocation();
 
@@ -32,6 +32,10 @@ export const ProtectedRoute = ({ children, requireVerified = false }) => {
 
   if (requireVerified && user && !user.isVerified) {
     return <Navigate to="/verify-email" state={{ email: user.email, from: location }} replace />;
+  }
+
+  if (allowedRoles.length > 0 && user && !allowedRoles.includes(user.role)) {
+    return <Navigate to="/browse" replace />;
   }
 
   return children;

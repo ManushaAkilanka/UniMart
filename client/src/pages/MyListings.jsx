@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { getMyListings, updateListingStatus, deleteListing } from '../utils/api';
+import { getMyListings, updateListingStatus, deleteListing, releaseClaim } from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
@@ -10,7 +10,8 @@ const STATUS_TABS = [
   { key: 'all', label: 'All Listings' },
   { key: 'active', label: 'Active on Campus' },
   { key: 'pending', label: 'Pending Approval' },
-  { key: 'sold', label: 'Sold' },
+  { key: 'sold', label: 'Sold / Fulfilled' },
+  { key: 'claimed', label: 'Claimed (Free)' },
 ];
 
 export const MyListings = () => {
@@ -30,6 +31,8 @@ export const MyListings = () => {
 
   // Status updating state map: { [id]: boolean }
   const [statusUpdating, setStatusUpdating] = useState({});
+  // Release-claim state map: { [id]: boolean }
+  const [releaseUpdating, setReleaseUpdating] = useState({});
 
   const fetchListings = useCallback(async () => {
     try {
@@ -56,9 +59,16 @@ export const MyListings = () => {
     }
   }, [successBanner]);
 
-  // Handle Mark Sold / Reactivate
+  // Handle Mark Sold / Fulfilled / Reactivate
   const handleToggleStatus = async (item) => {
-    const newStatus = item.status === 'sold' ? 'active' : 'sold';
+    const isWanted = item.listingType === 'wanted';
+    let newStatus;
+    if (item.status === 'sold' || item.status === 'fulfilled') {
+      newStatus = 'active';
+    } else {
+      newStatus = isWanted ? 'fulfilled' : 'sold';
+    }
+
     try {
       setStatusUpdating((prev) => ({ ...prev, [item._id]: true }));
       await updateListingStatus(item._id, newStatus);
@@ -68,6 +78,8 @@ export const MyListings = () => {
       setSuccessBanner(
         newStatus === 'sold'
           ? `"${item.title.substring(0, 30)}..." marked as sold!`
+          : newStatus === 'fulfilled'
+          ? `"${item.title.substring(0, 30)}..." marked as fulfilled!`
           : `"${item.title.substring(0, 30)}..." reactivated on campus!`
       );
     } catch (err) {
@@ -94,19 +106,37 @@ export const MyListings = () => {
     }
   };
 
+  // Handle Release Claim (owner releases a claimed free item)
+  const handleReleaseClaim = async (item) => {
+    try {
+      setReleaseUpdating((prev) => ({ ...prev, [item._id]: true }));
+      await releaseClaim(item._id);
+      setListings((prev) =>
+        prev.map((l) => (l._id === item._id ? { ...l, status: 'active', claimedBy: null } : l))
+      );
+      setSuccessBanner(`"${item.title.substring(0, 30)}..." claim released — back on campus!`);
+    } catch (err) {
+      setError(err.message || 'Failed to release claim.');
+    } finally {
+      setReleaseUpdating((prev) => ({ ...prev, [item._id]: false }));
+    }
+  };
+
   // Filter listings by tab
   const filteredListings = listings.filter((item) => {
     if (activeTab === 'all') return true;
     if (activeTab === 'active') return item.status === 'active';
     if (activeTab === 'pending') return item.status === 'pending';
-    if (activeTab === 'sold') return item.status === 'sold';
+    if (activeTab === 'sold') return item.status === 'sold' || item.status === 'fulfilled';
+    if (activeTab === 'claimed') return item.status === 'claimed';
     return true;
   });
 
   // Calculate statistics
   const activeCount = listings.filter((l) => l.status === 'active').length;
   const pendingCount = listings.filter((l) => l.status === 'pending').length;
-  const soldCount = listings.filter((l) => l.status === 'sold').length;
+  const soldCount = listings.filter((l) => l.status === 'sold' || l.status === 'fulfilled').length;
+  const claimedCount = listings.filter((l) => l.status === 'claimed').length;
   const totalViews = listings.reduce((sum, l) => sum + (l.viewCount || 0), 0);
 
   return (
@@ -232,6 +262,7 @@ export const MyListings = () => {
           if (tab.key === 'active') count = activeCount;
           if (tab.key === 'pending') count = pendingCount;
           if (tab.key === 'sold') count = soldCount;
+          if (tab.key === 'claimed') count = claimedCount;
 
           return (
             <button
@@ -308,7 +339,7 @@ export const MyListings = () => {
                 key={item._id}
                 className={cn(
                   'bg-surface-container-lowest rounded-xl border p-space-md sm:p-space-lg shadow-sm hover:shadow-md transition-all flex flex-col sm:flex-row items-start sm:items-center justify-between gap-space-md',
-                  item.status === 'sold'
+                  item.status === 'sold' || item.status === 'fulfilled'
                     ? 'border-outline-variant/20 opacity-80 bg-surface-container-low/40'
                     : 'border-outline-variant/30'
                 )}
@@ -318,6 +349,10 @@ export const MyListings = () => {
                   <div className="relative w-24 h-24 sm:w-28 sm:h-28 rounded-lg overflow-hidden bg-surface-container shrink-0 border border-outline-variant/20">
                     {coverImage ? (
                       <img src={coverImage} alt={item.title} className="w-full h-full object-cover" />
+                    ) : item.listingType === 'wanted' ? (
+                      <div className="w-full h-full flex flex-col items-center justify-center bg-amber-500/10 text-amber-600">
+                        <span className="material-symbols-outlined text-2xl">campaign</span>
+                      </div>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-on-surface-variant">
                         <span className="material-symbols-outlined text-2xl">photo_camera</span>
@@ -332,6 +367,10 @@ export const MyListings = () => {
                           ? 'bg-secondary text-on-secondary'
                           : item.status === 'sold'
                           ? 'bg-primary-container text-on-primary'
+                          : item.status === 'fulfilled'
+                          ? 'bg-amber-600 text-white'
+                          : item.status === 'claimed'
+                          ? 'bg-violet-600 text-white'
                           : 'bg-amber-500 text-white'
                       )}
                     >
@@ -341,6 +380,21 @@ export const MyListings = () => {
 
                   <div className="flex flex-col min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap mb-1">
+                      {item.listingType === 'wanted' && (
+                        <span className="px-2 py-0.5 rounded bg-amber-500/10 font-label-sm text-[11px] font-bold text-amber-700 dark:text-amber-300">
+                          WANTED
+                        </span>
+                      )}
+                      {item.listingType === 'free' && (
+                        <span className="px-2 py-0.5 rounded bg-secondary/10 font-label-sm text-[11px] font-bold text-secondary">
+                          FREE
+                        </span>
+                      )}
+                      {item.status === 'claimed' && (
+                        <span className="px-2 py-0.5 rounded bg-violet-100 dark:bg-violet-950/40 font-label-sm text-[11px] font-bold text-violet-700 dark:text-violet-300">
+                          CLAIMED
+                        </span>
+                      )}
                       {item.condition && (
                         <span className="px-2 py-0.5 rounded bg-surface-container font-label-sm text-[11px] font-semibold text-secondary">
                           {item.condition}
@@ -365,9 +419,16 @@ export const MyListings = () => {
                           FREE
                         </span>
                       ) : item.listingType === 'wanted' ? (
-                        <span className="font-headline-sm text-headline-sm text-on-surface-variant font-semibold">
-                          Wanted
-                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-headline-sm text-headline-sm text-amber-600 font-semibold">
+                            Wanted Request
+                          </span>
+                          <span className="text-xs text-on-surface-variant font-medium">
+                            {item.budgetMax
+                              ? `Budget: Up to Rs. ${item.budgetMax.toLocaleString('en-LK')}`
+                              : 'Budget: Open to Offers'}
+                          </span>
+                        </div>
                       ) : (
                         <span className="font-headline-md text-headline-md text-on-surface font-bold">
                           Rs. {item.price?.toLocaleString('en-LK')}
@@ -400,16 +461,40 @@ export const MyListings = () => {
 
                 {/* Right: Actions */}
                 <div className="flex items-center gap-space-xs w-full sm:w-auto justify-end border-t sm:border-t-0 border-outline-variant/20 pt-space-xs sm:pt-0">
-                  {/* Mark as Sold / Reactivate */}
-                  <Button
-                    variant={item.status === 'sold' ? 'secondary' : 'outline'}
-                    size="sm"
-                    loading={isUpdating}
-                    onClick={() => handleToggleStatus(item)}
-                    leftIcon={item.status === 'sold' ? 'replay' : 'check'}
-                  >
-                    {item.status === 'sold' ? 'Reactivate' : 'Mark Sold'}
-                  </Button>
+                  {/* Claimed free listing: show Release Claim instead of Mark Sold */}
+                  {item.status === 'claimed' && item.listingType === 'free' ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      loading={releaseUpdating[item._id]}
+                      onClick={() => handleReleaseClaim(item)}
+                      leftIcon="lock_open"
+                    >
+                      Release Claim
+                    </Button>
+                  ) : (() => {
+                    const isFulfilled = item.status === 'fulfilled';
+                    const isSold = item.status === 'sold';
+                    const isDone = isSold || isFulfilled;
+                    const isWanted = item.listingType === 'wanted';
+                    const label = isDone
+                      ? 'Reactivate'
+                      : isWanted
+                      ? 'Mark Fulfilled'
+                      : 'Mark Sold';
+
+                    return (
+                      <Button
+                        variant={isDone ? 'secondary' : 'outline'}
+                        size="sm"
+                        loading={isUpdating}
+                        onClick={() => handleToggleStatus(item)}
+                        leftIcon={isDone ? 'replay' : 'check'}
+                      >
+                        {label}
+                      </Button>
+                    );
+                  })()}
 
                   {/* Edit */}
                   <Link to={`/listings/${item._id}/edit`}>
