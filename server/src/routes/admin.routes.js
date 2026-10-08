@@ -38,6 +38,10 @@ router.patch('/listings/:id/approve', adminController.approveListing);
 router.get('/verification-queue', adminController.getVerificationQueue);
 router.patch('/verification-queue/:id/approve', adminController.approveVerification);
 
+// ── Pending Accounts (non-university Google OAuth users) ───────────────────────
+router.get('/pending-accounts', adminController.getPendingAccounts);
+router.patch('/users/:id/approve', adminController.approveAccount);
+
 // ── Audit Log ──────────────────────────────────────────────────────────────────
 router.get('/audit-log', adminController.getAuditLog);
 

@@ -169,7 +169,6 @@ export const Navbar = ({ onOpenCampusModal }) => {
     { label: 'Categories', path: '/categories' },
     { label: 'Wanted', path: '/wanted' },
     { label: 'Free Items', path: '/free' },
-    { label: 'UI System', path: '/design-check' },
   ];
 
   return (

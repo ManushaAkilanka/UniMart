@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import * as convController from '../controllers/conversation.controller.js';
-import { requireAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, requireApproved } from '../middleware/auth.middleware.js';
 import { ENV } from '../config/env.js';
 
 const router = Router();
@@ -25,13 +25,13 @@ router.use(requireAuth);
 // GET/POST /api/conversations
 router.get('/', convController.getConversations);
 router.get('/unread-count', convController.getUnreadCount);
-router.post('/', convController.createOrGetConversation);
+router.post('/', requireApproved, convController.createOrGetConversation);
 
 // GET/POST /api/conversations/:id/messages
 router.get('/:id/messages', convController.getMessages);
 router.post('/:id/messages', messageRateLimiter, convController.sendMessage);
 
-// Meetup proposal response
-router.patch('/:id/messages/:messageId/proposal', convController.respondToMeetupProposal);
+// Meetup proposal response (rate-limited)
+router.patch('/:id/messages/:messageId/proposal', messageRateLimiter, convController.respondToMeetupProposal);
 
 export default router;

@@ -515,3 +515,70 @@ export const getAuditLog = async (req, res, next) => {
     next(err);
   }
 };
+
+// ── GET /api/admin/pending-accounts ──────────────────────────────────────────
+/**
+ * Returns paginated list of users with accountStatus:'pending_approval'.
+ * Sorted newest-first so admins can action them in arrival order.
+ */
+export const getPendingAccounts = async (req, res, next) => {
+  try {
+    const { page, limit, skip } = paginationParams(req.query);
+
+    const [users, total] = await Promise.all([
+      User.find({ accountStatus: 'pending_approval' })
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .select('fullName email avatarUrl createdAt googleId campus')
+        .lean(),
+      User.countDocuments({ accountStatus: 'pending_approval' }),
+    ]);
+
+    res.json({
+      success: true,
+      users,
+      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── PATCH /api/admin/users/:id/approve ────────────────────────────────────────
+/**
+ * Sets accountStatus to 'active' for a pending-approval user.
+ * Admin-only action — moderators cannot approve accounts.
+ */
+export const approveAccount = async (req, res, next) => {
+  try {
+    if (req.user.role !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only admins can approve accounts.' });
+    }
+    if (!OID.test(req.params.id)) {
+      return res.status(400).json({ success: false, message: 'Invalid user ID.' });
+    }
+
+    const user = await User.findById(req.params.id);
+    if (!user) return res.status(404).json({ success: false, message: 'User not found.' });
+
+    if (user.accountStatus !== 'pending_approval') {
+      return res.status(409).json({ success: false, message: 'User account is not pending approval.' });
+    }
+
+    user.accountStatus = 'active';
+    await user.save();
+
+    await logAction(req, {
+      action: 'user.account_approved',
+      targetType: 'user',
+      targetId: user._id,
+      meta: { email: user.email },
+    });
+
+    res.json({ success: true, message: `${user.fullName}'s account has been approved.`, user });
+  } catch (err) {
+    next(err);
+  }
+};
+

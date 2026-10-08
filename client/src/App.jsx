@@ -203,8 +203,10 @@ export default function App() {
           />
           <Route path="/admin" element={<Navigate to="/moderation" replace />} />
 
-          {/* Public padded pages */}
-          <Route path="/design-check" element={<PageLayout><DesignCheck /></PageLayout>} />
+          {/* Dev-only design system showcase route */}
+          {import.meta.env.DEV && (
+            <Route path="/design-check" element={<PageLayout><DesignCheck /></PageLayout>} />
+          )}
           <Route
             path="/categories"
             element={

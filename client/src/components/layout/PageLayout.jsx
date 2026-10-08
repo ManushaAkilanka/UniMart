@@ -3,6 +3,7 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { PendingApprovalBanner } from '../ui/PendingApprovalBanner';
 import { cn } from '../../utils/cn';
 
 export const PageLayout = ({ children, className, fullWidth = false }) => {
@@ -41,8 +42,11 @@ export const PageLayout = ({ children, className, fullWidth = false }) => {
       {/* Persistent Navbar */}
       <Navbar onOpenCampusModal={() => setCampusModalOpen(true)} />
 
+      {/* Pending approval banner — only visible to pending_approval users */}
+      <PendingApprovalBanner />
+
       {/* Main Content Body */}
-      <main className="flex-1 w-full pt-20 bg-surface">
+      <main id="main-content" className="flex-1 w-full pt-20 bg-surface">
         <div
           className={cn(
             'w-full mx-auto',

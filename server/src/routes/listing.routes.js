@@ -1,8 +1,9 @@
 import { Router } from 'express';
 import * as listingController from '../controllers/listing.controller.js';
-import { requireAuth, optionalAuth } from '../middleware/auth.middleware.js';
+import { requireAuth, optionalAuth, requireApproved } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.js';
 import { handleListingImageUpload } from '../middleware/upload.middleware.js';
+import { uploadRateLimiter } from '../middleware/rateLimiter.js';
 import {
   getListingsQuerySchema,
   createListingSchema,
@@ -23,6 +24,8 @@ router.get('/', validateRequest(getListingsQuerySchema), listingController.getLi
 router.post(
   '/',
   requireAuth,
+  requireApproved,
+  uploadRateLimiter,
   handleListingImageUpload,
   validateRequest(createListingSchema),
   listingController.createListing
@@ -45,7 +48,7 @@ router.patch(
 );
 
 // POST /api/listings/:id/claim (Claim a free listing)
-router.post('/:id/claim', requireAuth, listingController.claimListing);
+router.post('/:id/claim', requireAuth, requireApproved, listingController.claimListing);
 
 // POST /api/listings/:id/release-claim (Owner releases an existing claim)
 router.post('/:id/release-claim', requireAuth, listingController.releaseClaim);
@@ -54,6 +57,7 @@ router.post('/:id/release-claim', requireAuth, listingController.releaseClaim);
 router.patch(
   '/:id',
   requireAuth,
+  uploadRateLimiter,
   handleListingImageUpload,
   validateRequest(updateListingSchema),
   listingController.updateListing

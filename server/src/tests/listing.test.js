@@ -221,6 +221,24 @@ describe('UniMart Listings Backend API', () => {
       expect(res.body.message).toBe('Validation error');
     });
 
+    it('REGRESSION: rejects listing creation without primary category with clear validation error', async () => {
+      const res = await request(app)
+        .post('/api/listings')
+        .set('Authorization', `Bearer ${userAToken}`)
+        .send({
+          title: 'Regression Item Without Category',
+          description: 'Valid description with more than 10 characters.',
+          listingType: 'wanted',
+          campus: 'University of Colombo',
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe('Validation error');
+      const categoryError = res.body.errors?.find((e) => e.path.includes('categoryId'));
+      expect(categoryError).toBeDefined();
+    });
+
     it('validates and rejects non-image file uploads with invalid file signatures', async () => {
       const res = await request(app)
         .post('/api/listings')
@@ -767,6 +785,52 @@ describe('UniMart Listings Backend API', () => {
 
       expect(res.status).toBe(403);
       expect(res.body.message).toMatch(/only the owner/i);
+    });
+
+    it('prevents pending_approval user from claiming a listing (403 ACCOUNT_PENDING_APPROVAL)', async () => {
+      const resP = await request(app).post('/api/auth/register').send({
+        fullName: 'Pending Claimer',
+        email: 'pending.claimer@sci.cmb.ac.lk',
+        password: 'Password123!',
+      });
+      const pendingToken = resP.headers['set-cookie'][0].split(';')[0].replace('token=', '');
+      await User.findByIdAndUpdate(resP.body.data.user._id, { accountStatus: 'pending_approval' });
+
+      const res = await request(app)
+        .post(`/api/listings/${freeListing._id}/claim`)
+        .set('Authorization', `Bearer ${pendingToken}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('ACCOUNT_PENDING_APPROVAL');
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // requireApproved on Listing Creation
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('requireApproved on Listing Creation', () => {
+    it('prevents pending_approval user from creating a listing (403 ACCOUNT_PENDING_APPROVAL)', async () => {
+      const resP = await request(app).post('/api/auth/register').send({
+        fullName: 'Pending Seller',
+        email: 'pending.seller@sci.cmb.ac.lk',
+        password: 'Password123!',
+      });
+      const pendingToken = resP.headers['set-cookie'][0].split(';')[0].replace('token=', '');
+      await User.findByIdAndUpdate(resP.body.data.user._id, { accountStatus: 'pending_approval' });
+
+      const res = await request(app)
+        .post('/api/listings')
+        .set('Authorization', `Bearer ${pendingToken}`)
+        .field('title', 'Pending Test Listing')
+        .field('description', 'This should be blocked before creation.')
+        .field('categoryId', categoryAcademic._id.toString())
+        .field('listingType', 'sale')
+        .field('price', '3000')
+        .field('condition', 'used-good')
+        .field('campus', 'University of Colombo');
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('ACCOUNT_PENDING_APPROVAL');
     });
   });
 });

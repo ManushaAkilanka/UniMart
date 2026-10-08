@@ -301,6 +301,66 @@ describe('UniMart Admin & Moderation API', () => {
     });
   });
 
+  // ── Pending Accounts Queue ──────────────────────────────────────────────────
+  describe('Pending Accounts Queue', () => {
+    let pendingUserId;
+
+    beforeAll(async () => {
+      // Create a user with accountStatus: 'pending_approval' (e.g. from Google OAuth)
+      const pendingUser = await User.create({
+        fullName: 'External Gmail User',
+        email: 'external.applicant@gmail.com',
+        googleId: 'google_oauth_pending_123',
+        accountStatus: 'pending_approval',
+        isVerified: true,
+      });
+      pendingUserId = pendingUser._id.toString();
+    });
+
+    it('moderator can get the pending accounts list', async () => {
+      const res = await request(app)
+        .get('/api/admin/pending-accounts')
+        .set(authHeader(modToken));
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.users)).toBe(true);
+      expect(res.body.users.some((u) => u._id.toString() === pendingUserId)).toBe(true);
+    });
+
+    it('student cannot access pending accounts (403)', async () => {
+      const res = await request(app)
+        .get('/api/admin/pending-accounts')
+        .set(authHeader(studentToken));
+      expect(res.status).toBe(403);
+    });
+
+    it('moderator cannot approve a pending account (admin-only, 403)', async () => {
+      const res = await request(app)
+        .patch(`/api/admin/users/${pendingUserId}/approve`)
+        .set(authHeader(modToken));
+      expect(res.status).toBe(403);
+      expect(res.body.message).toMatch(/only admins can approve/i);
+    });
+
+    it('admin can approve a pending account', async () => {
+      const res = await request(app)
+        .patch(`/api/admin/users/${pendingUserId}/approve`)
+        .set(authHeader(adminToken));
+      expect(res.status).toBe(200);
+      expect(res.body.user.accountStatus).toBe('active');
+
+      const updated = await User.findById(pendingUserId);
+      expect(updated.accountStatus).toBe('active');
+    });
+
+    it('returns 409 when attempting to approve an already active account', async () => {
+      const res = await request(app)
+        .patch(`/api/admin/users/${pendingUserId}/approve`)
+        .set(authHeader(adminToken));
+      expect(res.status).toBe(409);
+      expect(res.body.message).toMatch(/not pending approval/i);
+    });
+  });
+
   // ── Audit Log ────────────────────────────────────────────────────────────────
   describe('GET /api/admin/audit-log', () => {
     it('admin can retrieve the audit log', async () => {
@@ -321,3 +381,4 @@ describe('UniMart Admin & Moderation API', () => {
     });
   });
 });
+

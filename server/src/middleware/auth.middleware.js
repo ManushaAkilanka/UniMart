@@ -137,3 +137,25 @@ export const requireVerified = (req, res, next) => {
   }
   next();
 };
+
+// ── requireApproved ───────────────────────────────────────────────────────────
+/**
+ * Blocks users whose accountStatus is 'pending_approval'.
+ * Used to restrict listing creation, claiming free items, and seller messaging
+ * until an admin approves the non-university Google account.
+ * Must be used AFTER requireAuth.
+ */
+export const requireApproved = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Authentication required.' });
+  }
+  if (req.user.accountStatus === 'pending_approval') {
+    return res.status(403).json({
+      success: false,
+      code: 'ACCOUNT_PENDING_APPROVAL',
+      message:
+        'Your account is pending admin approval. You cannot perform this action until your account is approved.',
+    });
+  }
+  next();
+};

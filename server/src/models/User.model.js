@@ -59,6 +59,11 @@ const userSchema = new Schema(
       type: Boolean,
       default: false,
     },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'pending_approval'],
+      default: 'active',
+    },
     isSuspended: {
       type: Boolean,
       default: false,
@@ -106,6 +111,7 @@ userSchema.index({ role: 1 });
 userSchema.index({ campus: 1 });
 userSchema.index({ isVerified: 1 });
 userSchema.index({ isSuspended: 1 });
+userSchema.index({ accountStatus: 1 });
 
 // Instance method: compare password
 userSchema.methods.comparePassword = async function (plainPassword) {

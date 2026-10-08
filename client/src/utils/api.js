@@ -320,6 +320,19 @@ export function approveVerification(id) {
   return request(`/admin/verification-queue/${id}/approve`, { method: 'PATCH' });
 }
 
+/** GET /api/admin/pending-accounts */
+export function getPendingAccounts(params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, v]) => v !== '' && v != null))
+  ).toString();
+  return request(`/admin/pending-accounts${qs ? `?${qs}` : ''}`);
+}
+
+/** PATCH /api/admin/users/:id/approve */
+export function approveAccount(id) {
+  return request(`/admin/users/${id}/approve`, { method: 'PATCH' });
+}
+
 /** GET /api/admin/audit-log */
 export function getAuditLog(params = {}) {
   const qs = new URLSearchParams(

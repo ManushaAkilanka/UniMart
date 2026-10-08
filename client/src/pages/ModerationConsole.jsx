@@ -17,6 +17,8 @@ import {
   adminApproveListing,
   getVerificationQueue,
   approveVerification,
+  getPendingAccounts,
+  approveAccount,
   getAuditLog,
 } from '../utils/api';
 import { Modal } from '../components/ui/Modal';
@@ -257,6 +259,7 @@ const TABS = [
   { id: 'users', label: 'Users', icon: 'people' },
   { id: 'listings', label: 'Listings', icon: 'sell' },
   { id: 'verification', label: 'Verification', icon: 'verified_user' },
+  { id: 'pending', label: 'Pending Accounts', icon: 'pending_actions' },
   { id: 'audit', label: 'Audit Log', icon: 'history' },
 ];
 
@@ -294,6 +297,12 @@ export const ModerationConsole = () => {
   // Verification queue
   const [verQueue, setVerQueue] = useState([]);
   const [verLoading, setVerLoading] = useState(false);
+
+  // Pending accounts (non-university Google OAuth users)
+  const [pendingAccounts, setPendingAccounts] = useState([]);
+  const [pendingLoading, setPendingLoading] = useState(false);
+  const [pendingPagination, setPendingPagination] = useState(null);
+  const [pendingPage, setPendingPage] = useState(1);
 
   // Audit log
   const [auditLogs, setAuditLogs] = useState([]);
@@ -363,6 +372,17 @@ export const ModerationConsole = () => {
     }
   }, []);
 
+  const loadPendingAccounts = useCallback(async () => {
+    setPendingLoading(true);
+    try {
+      const data = await getPendingAccounts({ page: pendingPage });
+      setPendingAccounts(data.users || []);
+      setPendingPagination(data.pagination);
+    } finally {
+      setPendingLoading(false);
+    }
+  }, [pendingPage]);
+
   const loadAudit = useCallback(async () => {
     setAuditLoading(true);
     try {
@@ -379,8 +399,9 @@ export const ModerationConsole = () => {
     else if (activeTab === 'users') loadUsers();
     else if (activeTab === 'listings') loadListings();
     else if (activeTab === 'verification') loadVerQueue();
+    else if (activeTab === 'pending') loadPendingAccounts();
     else if (activeTab === 'audit') loadAudit();
-  }, [activeTab, loadReports, loadUsers, loadListings, loadVerQueue, loadAudit]);
+  }, [activeTab, loadReports, loadUsers, loadListings, loadVerQueue, loadPendingAccounts, loadAudit]);
 
   // ── Report detail ────────────────────────────────────────────────────────────
   const selectReport = async (report) => {
@@ -419,6 +440,9 @@ export const ModerationConsole = () => {
       } else if (type === 'verify') {
         await approveVerification(id);
         loadVerQueue(); loadStats();
+      } else if (type === 'approve_account') {
+        await approveAccount(id);
+        loadPendingAccounts(); loadStats();
       } else if (type === 'role') {
         await changeUserRole(id, extra);
         loadUsers();
@@ -503,6 +527,11 @@ export const ModerationConsole = () => {
             {tab.id === 'verification' && stats?.pendingVerification > 0 && (
               <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-amber-500 text-white font-label-sm text-[10px]">
                 {stats.pendingVerification}
+              </span>
+            )}
+            {tab.id === 'pending' && pendingPagination?.total > 0 && (
+              <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-amber-600 text-white font-label-sm text-[10px]">
+                {pendingPagination.total}
               </span>
             )}
           </button>
@@ -933,6 +962,104 @@ export const ModerationConsole = () => {
               </table>
             )}
           </div>
+        </div>
+      )}
+
+      {/* ── PENDING ACCOUNTS TAB ─────────────────────────────────────────── */}
+      {activeTab === 'pending' && (
+        <div className="flex flex-col gap-space-sm">
+          <div className="bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden">
+            <div className="px-space-md py-space-sm bg-surface-container border-b border-outline-variant/20 flex items-center justify-between">
+              <div className="flex items-center gap-space-xs">
+                <span className="material-symbols-outlined text-amber-500 text-base">pending_actions</span>
+                <span className="font-headline-sm text-headline-sm text-on-surface">
+                  Pending Approval ({pendingPagination?.total ?? '…'})
+                </span>
+              </div>
+              <p className="font-body-sm text-body-sm text-on-surface-variant max-w-sm text-right">
+                These users signed in with a non-university Google account and are awaiting your approval.
+              </p>
+            </div>
+
+            {pendingLoading ? (
+              <div className="p-space-md flex flex-col gap-2">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="h-12 bg-surface-container-high rounded animate-pulse" />
+                ))}
+              </div>
+            ) : pendingAccounts.length === 0 ? (
+              <div className="flex flex-col items-center py-space-2xl gap-space-sm">
+                <span className="material-symbols-outlined text-4xl text-secondary">check_circle</span>
+                <p className="font-headline-sm text-headline-sm text-on-surface">No accounts pending approval</p>
+                <p className="font-body-sm text-body-sm text-on-surface-variant">All Google sign-ins are either approved or from university email addresses.</p>
+              </div>
+            ) : (
+              <table className="w-full">
+                <thead className="bg-surface-container-low">
+                  <tr>
+                    {['User', 'Email', 'Sign-in', 'Campus', 'Joined', 'Action'].map((h) => (
+                      <th key={h} className="px-space-md py-space-sm text-left font-label-sm text-label-sm text-on-surface-variant uppercase tracking-wider">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {pendingAccounts.map((u) => (
+                    <tr key={u._id} className="border-b border-outline-variant/10 last:border-0 hover:bg-surface-container/50">
+                      <td className="px-space-md py-space-sm">
+                        <div className="flex items-center gap-space-xs">
+                          {u.avatarUrl ? (
+                            <img src={u.avatarUrl} alt="" className="w-7 h-7 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center text-amber-700 font-headline-sm text-headline-sm shrink-0">
+                              {(u.fullName || '?')[0]}
+                            </div>
+                          )}
+                          <span className="font-headline-sm text-headline-sm text-on-surface">{u.fullName}</span>
+                        </div>
+                      </td>
+                      <td className="px-space-md py-space-sm font-body-sm text-body-sm text-on-surface-variant">{u.email}</td>
+                      <td className="px-space-md py-space-sm">
+                        <span className="inline-flex items-center gap-1 px-space-xs py-0.5 rounded-full bg-surface-container text-on-surface-variant font-label-sm text-[10px] border border-outline-variant/20">
+                          <span className="material-symbols-outlined text-[12px]">account_circle</span>
+                          Google
+                        </span>
+                      </td>
+                      <td className="px-space-md py-space-sm font-body-sm text-body-sm text-on-surface-variant">{u.campus || '—'}</td>
+                      <td className="px-space-md py-space-sm font-body-sm text-body-sm text-on-surface-variant">{timeAgo(u.createdAt)}</td>
+                      <td className="px-space-md py-space-sm">
+                        <button
+                          type="button"
+                          disabled={working}
+                          onClick={() =>
+                            setConfirm({
+                              type: 'approve_account',
+                              id: u._id,
+                              title: `Approve ${u.fullName}`,
+                              body: `Grant full marketplace access to ${u.fullName} (${u.email})? They will be able to post listings, claim items, and message sellers.`,
+                            })
+                          }
+                          className="inline-flex items-center gap-1 px-space-sm py-1 rounded-lg bg-secondary text-on-secondary font-headline-sm text-headline-sm hover:bg-secondary/90 transition-all disabled:opacity-60"
+                        >
+                          <span className="material-symbols-outlined text-sm">check_circle</span>
+                          Approve
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          {pendingPagination && pendingPagination.pages > 1 && (
+            <div className="flex items-center justify-between">
+              <button type="button" onClick={() => setPendingPage((p) => Math.max(1, p - 1))} disabled={pendingPage <= 1}
+                className="px-space-sm py-1 rounded-lg border border-outline-variant/30 font-body-sm text-body-sm disabled:opacity-40 hover:bg-surface-container">Previous</button>
+              <span className="font-body-sm text-body-sm text-on-surface-variant">Page {pendingPage} of {pendingPagination.pages}</span>
+              <button type="button" onClick={() => setPendingPage((p) => Math.min(pendingPagination.pages, p + 1))} disabled={pendingPage >= pendingPagination.pages}
+                className="px-space-sm py-1 rounded-lg border border-outline-variant/30 font-body-sm text-body-sm disabled:opacity-40 hover:bg-surface-container">Next</button>
+            </div>
+          )}
         </div>
       )}
 

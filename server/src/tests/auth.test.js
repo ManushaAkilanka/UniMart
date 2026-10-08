@@ -358,7 +358,7 @@ describe('Google Workspace OAuth 2.0 Sign-In Flow', () => {
       vi.restoreAllMocks();
     });
 
-    it('❌ rejects a non-.ac.lk Google account with a clear error message redirected to login', async () => {
+    it('✅ accepts non-.ac.lk Google OAuth callback and creates pending_approval account', async () => {
       mockProfile = {
         sub: 'google_unauth_123',
         email: 'regularstudent@gmail.com',
@@ -368,14 +368,14 @@ describe('Google Workspace OAuth 2.0 Sign-In Flow', () => {
 
       const res = await request(app).get('/api/auth/google/callback?code=mock_valid_code');
 
+      // Now redirected to /dashboard (not /login?error=)
       expect(res.status).toBe(302);
-      expect(res.headers.location).toContain('/login?error=');
-      const decodedLocation = decodeURIComponent(res.headers.location);
-      expect(decodedLocation).toMatch(/Only verified university email addresses \(@\*\.ac\.lk\) are accepted/i);
+      expect(res.headers.location).toContain('/dashboard');
 
-      // Verify no user was created in DB
+      // User IS created but with pending_approval status
       const userInDb = await User.findOne({ email: 'regularstudent@gmail.com' });
-      expect(userInDb).toBeNull();
+      expect(userInDb).not.toBeNull();
+      expect(userInDb.accountStatus).toBe('pending_approval');
     });
 
     it('✅ links Google account to existing email+password account if emails match', async () => {
@@ -484,19 +484,21 @@ describe('Google Workspace OAuth 2.0 Sign-In Flow', () => {
   });
 
   describe('Programmatic Google Sign-In (POST /api/auth/google)', () => {
-    it('❌ returns 422 for non-.ac.lk email', async () => {
+    it('✅ creates pending_approval account for non-.ac.lk email instead of rejecting', async () => {
       const res = await request(app).post('/api/auth/google').send({
         googleId: 'google_api_111',
-        email: 'outsider@yahoo.com',
-        fullName: 'Outsider User',
+        email: 'outsider@gmail.com',
+        fullName: 'Outside User',
       });
 
-      expect(res.status).toBe(422);
-      expect(res.body.success).toBe(false);
-      expect(res.body.message).toMatch(/Only verified university email addresses/i);
+      // Now accepted — but stored as pending_approval
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.user.accountStatus).toBe('pending_approval');
+      expect(res.headers['set-cookie']).toBeDefined();
     });
 
-    it('✅ creates and logs in new student with .ac.lk email', async () => {
+    it('✅ creates and logs in new student with .ac.lk email as active', async () => {
       const res = await request(app).post('/api/auth/google').send({
         googleId: 'google_api_222',
         email: 'api_student@pdn.ac.lk',
@@ -507,8 +509,60 @@ describe('Google Workspace OAuth 2.0 Sign-In Flow', () => {
       expect(res.body.success).toBe(true);
       expect(res.body.data.user.email).toBe('api_student@pdn.ac.lk');
       expect(res.body.data.user.isVerified).toBe(true);
+      expect(res.body.data.user.accountStatus).toBe('active');
       expect(res.headers['set-cookie']).toBeDefined();
+    });
+
+    it('❌ pending_approval user cannot create a listing (403 ACCOUNT_PENDING_APPROVAL)', async () => {
+      // Sign in with a non-.ac.lk email to get pending account
+      const signInRes = await request(app).post('/api/auth/google').send({
+        googleId: 'google_pending_333',
+        email: 'pending@hotmail.com',
+        fullName: 'Pending User',
+      });
+      expect(signInRes.status).toBe(200);
+      expect(signInRes.body.data.user.accountStatus).toBe('pending_approval');
+      const cookie = signInRes.headers['set-cookie'].find((c) => c.startsWith('token='));
+
+      // Attempt to create a listing
+      const res = await request(app)
+        .post('/api/listings')
+        .set('Cookie', cookie)
+        .field('title', 'Blocked Listing')
+        .field('description', 'Should be blocked')
+        .field('price', '100')
+        .field('listingType', 'sell');
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('ACCOUNT_PENDING_APPROVAL');
+    });
+
+    it('❌ pending_approval user cannot start a new conversation (403 ACCOUNT_PENDING_APPROVAL)', async () => {
+      // Create a seller to message
+      const sellerRes = await request(app).post('/api/auth/google').send({
+        googleId: 'google_seller_555',
+        email: 'seller@mrt.ac.lk',
+        fullName: 'Seller User',
+      });
+      const sellerId = sellerRes.body.data.user._id;
+
+      // Sign in as pending user
+      const pendingRes = await request(app).post('/api/auth/google').send({
+        googleId: 'google_pending_444',
+        email: 'pending2@outlook.com',
+        fullName: 'Pending User 2',
+      });
+      const cookie = pendingRes.headers['set-cookie'].find((c) => c.startsWith('token='));
+
+      const res = await request(app)
+        .post('/api/conversations')
+        .set('Cookie', cookie)
+        .send({ participantId: sellerId });
+
+      expect(res.status).toBe(403);
+      expect(res.body.code).toBe('ACCOUNT_PENDING_APPROVAL');
     });
   });
 });
+
 

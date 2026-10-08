@@ -147,9 +147,11 @@ export const AuthProvider = ({ children }) => {
 
   const value = {
     user,
+    setUser,
     loading,
     isAuthenticated: Boolean(user),
     isVerified: Boolean(user?.isVerified),
+    isPendingApproval: user?.accountStatus === 'pending_approval',
     authError,
     setAuthError,
     register,

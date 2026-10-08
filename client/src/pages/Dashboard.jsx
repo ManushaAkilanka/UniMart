@@ -217,22 +217,24 @@ export const Dashboard = () => {
               </span>
             </Link>
 
-            <Link
-              to="/design-check"
-              className="p-space-sm rounded-lg hover:bg-surface-container transition-colors flex items-center justify-between group border border-outline-variant/20"
-            >
-              <div className="flex items-center gap-space-xs">
-                <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary transition-colors">
-                  palette
+            {import.meta.env.DEV && (
+              <Link
+                to="/design-check"
+                className="p-space-sm rounded-lg hover:bg-surface-container transition-colors flex items-center justify-between group border border-outline-variant/20"
+              >
+                <div className="flex items-center gap-space-xs">
+                  <span className="material-symbols-outlined text-on-surface-variant group-hover:text-secondary transition-colors">
+                    palette
+                  </span>
+                  <span className="font-headline-sm text-headline-sm text-on-surface">
+                    Phase 2 UI Design Showcase
+                  </span>
+                </div>
+                <span className="material-symbols-outlined text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
+                  chevron_right
                 </span>
-                <span className="font-headline-sm text-headline-sm text-on-surface">
-                  Phase 2 UI Design Showcase
-                </span>
-              </div>
-              <span className="material-symbols-outlined text-on-surface-variant group-hover:translate-x-0.5 transition-transform">
-                chevron_right
-              </span>
-            </Link>
+              </Link>
+            )}
           </div>
         </div>
       </div>

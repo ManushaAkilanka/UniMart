@@ -116,9 +116,6 @@ export const ListingForm = ({
         if (!cancelled) {
           const list = res.data?.categories || [];
           setCategories(list);
-          if (!categoryId && list.length > 0) {
-            setCategoryId(list[0]._id);
-          }
           setCategoriesLoading(false);
         }
       })
@@ -686,15 +683,14 @@ export const ListingForm = ({
                       validationErrors.categoryId ? 'border-error' : 'border-outline-variant/30'
                     )}
                   >
-                    {categoriesLoading ? (
-                      <option>Loading campus categories...</option>
-                    ) : (
-                      categories.map((cat) => (
-                        <option key={cat._id} value={cat._id}>
-                          {cat.name} ({cat.slug})
-                        </option>
-                      ))
-                    )}
+                    <option value="" disabled>
+                      {categoriesLoading ? 'Loading campus categories...' : 'Select a category'}
+                    </option>
+                    {categories.map((cat) => (
+                      <option key={cat._id} value={cat._id}>
+                        {cat.name} ({cat.slug})
+                      </option>
+                    ))}
                   </select>
                   <span className="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">
                     expand_more
