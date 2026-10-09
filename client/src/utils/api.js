@@ -46,6 +46,18 @@ export function getListingById(id) {
   return request(`/listings/${id}`);
 }
 
+/** GET /api/listings/recommendations — personalized recommendations */
+export function getRecommendations(params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/listings/recommendations${qs ? `?${qs}` : ''}`);
+}
+
+/** GET /api/listings/:id/similar — similar listings */
+export function getSimilarListings(id, params = {}) {
+  const qs = new URLSearchParams(params).toString();
+  return request(`/listings/${id}/similar${qs ? `?${qs}` : ''}`);
+}
+
 /** GET /api/listings/mine */
 export function getMyListings(params = {}) {
   const qs = new URLSearchParams(params).toString();
@@ -137,11 +149,12 @@ export function getMyProfile() {
   return request('/users/me');
 }
 
-/** PATCH /api/users/me — update own profile */
+/** PATCH /api/users/me — update own profile (JSON or FormData with avatar file) */
 export function updateMyProfile(data) {
+  const isFormData = data instanceof FormData;
   return request('/users/me', {
     method: 'PATCH',
-    body: JSON.stringify(data),
+    body: isFormData ? data : JSON.stringify(data),
   });
 }
 

@@ -7,6 +7,10 @@ import {
   notifyListingSold,
   notifyClaim,
 } from '../services/notification.service.js';
+import {
+  getPersonalizedRecommendations,
+  getSimilarListings,
+} from '../services/recommendation.service.js';
 
 /**
  * Escapes regex special characters to prevent regex injection attacks.
@@ -661,3 +665,39 @@ export const getMyListings = async (req, res, next) => {
     next(err);
   }
 };
+
+/**
+ * GET /api/listings/recommendations
+ * Returns personalized recommendations for authenticated user, or trending items for guest.
+ */
+export const getRecommendations = async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 8, 20);
+    const userId = req.user?._id || null;
+    const recommendations = await getPersonalizedRecommendations(userId, limit);
+    res.status(200).json({
+      success: true,
+      data: { recommendations },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+/**
+ * GET /api/listings/:id/similar
+ * Returns similar active listings for a given listing.
+ */
+export const getSimilar = async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit, 10) || 4, 12);
+    const similar = await getSimilarListings(req.params.id, limit);
+    res.status(200).json({
+      success: true,
+      data: { similar },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+

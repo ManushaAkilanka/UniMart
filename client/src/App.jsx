@@ -21,6 +21,7 @@ import { Profile } from './pages/Profile';
 import { SellerProfile } from './pages/SellerProfile';
 import { Messages } from './pages/Messages';
 import { ModerationConsole } from './pages/ModerationConsole';
+import { Categories } from './pages/Categories';
 
 const PlaceholderPage = ({ title, description }) => (
   <div className="flex flex-col items-center justify-center text-center py-space-3xl gap-space-md">
@@ -210,27 +211,13 @@ export default function App() {
           <Route
             path="/categories"
             element={
-              <PageLayout>
-                <PlaceholderPage title="Campus Categories" description="Browse by academic faculty, exam courses, and hostel equipment." />
-              </PageLayout>
-            }
-          />
-          <Route
-            path="/wanted"
-            element={
-              <PageLayout>
-                <PlaceholderPage title="Student Wanted Board" description="Peer request board for syllabus books, calculators, and exam materials." />
-              </PageLayout>
-            }
-          />
-          <Route
-            path="/free"
-            element={
               <PageLayout fullWidth>
-                <Browse />
+                <Categories />
               </PageLayout>
             }
           />
+          <Route path="/wanted" element={<Navigate to="/browse?listingType=wanted" replace />} />
+          <Route path="/free" element={<Navigate to="/browse?listingType=free" replace />} />
 
           {/* Catch-all */}
           <Route path="*" element={<Navigate to="/browse" replace />} />

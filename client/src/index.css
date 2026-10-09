@@ -3,13 +3,61 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --color-surface: 248 249 255;
+    --color-surface-dim: 203 219 245;
+    --color-surface-bright: 248 249 255;
+    --color-surface-container-lowest: 255 255 255;
+    --color-surface-container-low: 239 244 255;
+    --color-surface-container: 229 238 255;
+    --color-surface-container-high: 220 233 255;
+    --color-surface-container-highest: 211 228 254;
+    --color-surface-variant: 211 228 254;
+    --color-surface-tint: 86 94 116;
+    --color-on-surface: 11 28 48;
+    --color-on-surface-variant: 69 70 77;
+    --color-inverse-surface: 33 49 69;
+    --color-inverse-on-surface: 234 241 255;
+    --color-outline: 118 119 125;
+    --color-outline-variant: 198 198 205;
+    --color-background: 248 249 255;
+    --color-on-background: 11 28 48;
+  }
+
+  html.dark {
+    --color-surface: 15 23 42;
+    --color-surface-dim: 9 14 26;
+    --color-surface-bright: 30 41 59;
+    --color-surface-container-lowest: 11 17 32;
+    --color-surface-container-low: 17 27 46;
+    --color-surface-container: 23 35 60;
+    --color-surface-container-high: 30 45 76;
+    --color-surface-container-highest: 39 58 96;
+    --color-surface-variant: 30 41 59;
+    --color-surface-tint: 147 162 200;
+    --color-on-surface: 241 245 249;
+    --color-on-surface-variant: 203 213 225;
+    --color-inverse-surface: 248 249 255;
+    --color-inverse-on-surface: 11 28 48;
+    --color-outline: 100 116 139;
+    --color-outline-variant: 51 65 85;
+    --color-background: 15 23 42;
+    --color-on-background: 241 245 249;
+  }
+
   html,
   body {
     margin: 0;
     padding: 0;
-    background-color: #f8f9ff;
-    color: #0b1c30;
+    background-color: rgb(var(--color-surface));
+    color: rgb(var(--color-on-surface));
     font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  html.dark body {
+    background-color: #0f172a;
+    color: #f1f5f9;
+    color-scheme: dark;
   }
 
   /* Support material symbols */

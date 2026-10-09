@@ -56,7 +56,46 @@ export const Profile = () => {
   // Form state
   const [form, setForm] = useState({ fullName: '', faculty: '', campus: '', avatarUrl: '' });
   const [formErrors, setFormErrors] = useState({});
-  const avatarInputRef = useRef(null);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarPreview, setAvatarPreview] = useState(null);
+  const filePickerRef = useRef(null);
+
+  const handleFileChange = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setFormErrors((prev) => ({
+        ...prev,
+        avatar: 'Only genuine JPEG, PNG, or WebP images are accepted.',
+      }));
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      setFormErrors((prev) => ({
+        ...prev,
+        avatar: 'Photo size cannot exceed 5 MB.',
+      }));
+      return;
+    }
+
+    setAvatarFile(file);
+    setAvatarPreview(URL.createObjectURL(file));
+    setFormErrors((prev) => {
+      const copy = { ...prev };
+      delete copy.avatar;
+      delete copy.avatarUrl;
+      return copy;
+    });
+  };
+
+  const handleRemovePhoto = () => {
+    setAvatarFile(null);
+    if (avatarPreview) URL.revokeObjectURL(avatarPreview);
+    setAvatarPreview(null);
+    if (filePickerRef.current) filePickerRef.current.value = '';
+  };
 
   useEffect(() => {
     if (!authLoading && !isAuthenticated) {
@@ -109,7 +148,7 @@ export const Profile = () => {
     if (form.fullName.trim().length > 100) {
       errs.fullName = 'Full name must not exceed 100 characters.';
     }
-    if (form.avatarUrl && form.avatarUrl.trim()) {
+    if (!avatarFile && form.avatarUrl && form.avatarUrl.trim()) {
       try { new URL(form.avatarUrl); } catch {
         errs.avatarUrl = 'Please enter a valid image URL.';
       }
@@ -131,15 +170,26 @@ export const Profile = () => {
 
     setSaving(true);
     try {
-      const payload = {
-        fullName: form.fullName.trim(),
-        ...(form.faculty && { faculty: form.faculty }),
-        ...(form.campus && { campus: form.campus }),
-        ...(form.avatarUrl?.trim() && { avatarUrl: form.avatarUrl.trim() }),
-      };
+      let res;
+      if (avatarFile) {
+        const formData = new FormData();
+        formData.append('fullName', form.fullName.trim());
+        if (form.faculty) formData.append('faculty', form.faculty);
+        if (form.campus) formData.append('campus', form.campus);
+        formData.append('avatar', avatarFile);
+        res = await updateMyProfile(formData);
+      } else {
+        const payload = {
+          fullName: form.fullName.trim(),
+          ...(form.faculty && { faculty: form.faculty }),
+          ...(form.campus && { campus: form.campus }),
+          ...(form.avatarUrl !== undefined && { avatarUrl: form.avatarUrl.trim() }),
+        };
+        res = await updateMyProfile(payload);
+      }
 
-      const res = await updateMyProfile(payload);
       setProfile(res.data?.user);
+      handleRemovePhoto();
       setSaveSuccess(true);
       setEditing(false);
       // Refresh auth context so navbar avatar updates
@@ -160,6 +210,7 @@ export const Profile = () => {
       campus: profile.campus ?? '',
       avatarUrl: profile.avatarUrl ?? '',
     });
+    handleRemovePhoto();
     setFormErrors({});
     setSaveError(null);
     setEditing(false);
@@ -379,38 +430,104 @@ export const Profile = () => {
                   </select>
                 </div>
 
-                {/* Avatar URL */}
-                <div className="flex flex-col gap-1.5">
-                  <label className="font-label-md font-semibold text-on-surface" htmlFor="profile-avatar">
-                    Avatar URL
+                {/* Profile Photo / Avatar */}
+                <div className="flex flex-col gap-2">
+                  <label className="font-label-md font-semibold text-on-surface">
+                    Profile Photo
                   </label>
-                  <input
-                    id="profile-avatar"
-                    type="url"
-                    value={form.avatarUrl}
-                    onChange={(e) => setForm((f) => ({ ...f, avatarUrl: e.target.value }))}
-                    placeholder="https://example.com/your-photo.jpg"
-                    className={cn(
-                      'w-full h-12 px-4 rounded-xl border bg-surface-container-lowest font-body-md text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 transition-all',
-                      formErrors.avatarUrl
-                        ? 'border-error focus:ring-error/20'
-                        : 'border-outline-variant/40 focus:ring-secondary/20 focus:border-secondary'
-                    )}
-                  />
-                  {formErrors.avatarUrl && (
-                    <p className="text-error font-label-sm text-[12px]">{formErrors.avatarUrl}</p>
-                  )}
-                  {form.avatarUrl && !formErrors.avatarUrl && (
-                    <div className="flex items-center gap-2 mt-1">
-                      <img
-                        src={form.avatarUrl}
-                        alt="Avatar preview"
-                        className="w-10 h-10 rounded-xl object-cover border border-outline-variant/20"
-                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
-                      />
-                      <span className="font-label-sm text-on-surface-variant text-[11px]">Preview</span>
+
+                  {/* Primary: File Upload Control */}
+                  <div className="p-4 rounded-xl border border-outline-variant/30 bg-surface-container-low flex flex-col sm:flex-row items-center gap-4">
+                    {/* Photo thumbnail / preview */}
+                    <div className="relative w-16 h-16 rounded-2xl overflow-hidden bg-secondary-container text-on-secondary-container flex items-center justify-center shrink-0 border border-outline-variant/30 shadow-sm">
+                      {avatarPreview ? (
+                        <img
+                          src={avatarPreview}
+                          alt="New avatar preview"
+                          className="w-full h-full object-cover"
+                        />
+                      ) : form.avatarUrl ? (
+                        <img
+                          src={form.avatarUrl}
+                          alt="Current avatar"
+                          className="w-full h-full object-cover"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                        />
+                      ) : (
+                        <span className="font-headline-sm font-bold">{initials}</span>
+                      )}
                     </div>
+
+                    <div className="flex-1 flex flex-col gap-1 text-center sm:text-left">
+                      <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
+                        <input
+                          ref={filePickerRef}
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleFileChange}
+                          className="hidden"
+                          id="profile-avatar-file"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => filePickerRef.current?.click()}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold border border-outline-variant/40 transition-colors"
+                        >
+                          <span className="material-symbols-outlined text-base">upload</span>
+                          <span>{avatarFile ? 'Change Photo' : 'Upload Photo'}</span>
+                        </button>
+                        {avatarFile && (
+                          <button
+                            type="button"
+                            onClick={handleRemovePhoto}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-error hover:bg-error-container/20 text-xs font-semibold transition-colors"
+                          >
+                            <span className="material-symbols-outlined text-sm">delete</span>
+                            <span>Remove</span>
+                          </button>
+                        )}
+                      </div>
+                      <p className="font-label-sm text-[11px] text-on-surface-variant">
+                        {avatarFile
+                          ? `Selected: ${avatarFile.name} (${(avatarFile.size / 1024).toFixed(0)} KB)`
+                          : 'Supports JPG, PNG, or WebP · Max 5MB'}
+                      </p>
+                    </div>
+                  </div>
+                  {formErrors.avatar && (
+                    <p className="text-error font-label-sm text-[12px]">{formErrors.avatar}</p>
                   )}
+
+                  {/* Fallback / Alternative: External Image URL */}
+                  <details className="mt-1 group">
+                    <summary className="text-xs font-medium text-secondary hover:underline cursor-pointer list-none flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm transition-transform group-open:rotate-90">
+                        chevron_right
+                      </span>
+                      <span>Or use an external image URL instead</span>
+                    </summary>
+                    <div className="pt-2">
+                      <input
+                        id="profile-avatar"
+                        type="url"
+                        value={form.avatarUrl}
+                        onChange={(e) => {
+                          setForm((f) => ({ ...f, avatarUrl: e.target.value }));
+                          if (avatarFile) handleRemovePhoto();
+                        }}
+                        placeholder="https://example.com/your-photo.jpg"
+                        className={cn(
+                          'w-full h-11 px-4 rounded-xl border bg-surface-container-lowest font-body-sm text-on-surface placeholder:text-on-surface-variant/60 focus:outline-none focus:ring-2 transition-all',
+                          formErrors.avatarUrl
+                            ? 'border-error focus:ring-error/20'
+                            : 'border-outline-variant/40 focus:ring-secondary/20 focus:border-secondary'
+                        )}
+                      />
+                      {formErrors.avatarUrl && (
+                        <p className="text-error font-label-sm text-[12px] mt-1">{formErrors.avatarUrl}</p>
+                      )}
+                    </div>
+                  </details>
                 </div>
 
                 {/* Privacy note in edit mode */}

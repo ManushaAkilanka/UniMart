@@ -17,6 +17,9 @@ const router = Router();
 // GET /api/listings/mine (must be defined BEFORE /:id)
 router.get('/mine', requireAuth, listingController.getMyListings);
 
+// GET /api/listings/recommendations (Personalized or trending recommendations)
+router.get('/recommendations', optionalAuth, listingController.getRecommendations);
+
 // GET /api/listings (Public search with filters, pagination, and facets)
 router.get('/', validateRequest(getListingsQuerySchema), listingController.getListings);
 
@@ -30,6 +33,9 @@ router.post(
   validateRequest(createListingSchema),
   listingController.createListing
 );
+
+// GET /api/listings/:id/similar (Similar items for a listing)
+router.get('/:id/similar', listingController.getSimilar);
 
 // GET /api/listings/:id (View single listing and safely increment viewCount)
 router.get(

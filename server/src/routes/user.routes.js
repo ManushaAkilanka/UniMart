@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import * as userController from '../controllers/user.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
+import { handleAvatarUpload } from '../middleware/upload.middleware.js';
 
 const router = Router();
 
@@ -9,8 +10,8 @@ const router = Router();
 // GET  /api/users/me — get own full profile
 router.get('/me', requireAuth, userController.getMyProfile);
 
-// PATCH /api/users/me — update own profile (fullName, faculty, campus, avatarUrl)
-router.patch('/me', requireAuth, userController.updateMyProfile);
+// PATCH /api/users/me — update own profile (fullName, faculty, campus, avatarUrl, or file upload)
+router.patch('/me', requireAuth, handleAvatarUpload, userController.updateMyProfile);
 
 // GET /api/users/blocked — get list of blocked users
 router.get('/blocked', requireAuth, userController.getBlockedUsers);

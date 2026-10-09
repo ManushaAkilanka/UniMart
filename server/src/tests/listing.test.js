@@ -833,4 +833,56 @@ describe('UniMart Listings Backend API', () => {
       expect(res.body.code).toBe('ACCOUNT_PENDING_APPROVAL');
     });
   });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // Recommendations & Similar Listings
+  // ═══════════════════════════════════════════════════════════════════════════
+  describe('Recommendations & Similar Listings', () => {
+    let sampleListing;
+
+    beforeEach(async () => {
+      sampleListing = await Listing.create({
+        sellerId: userAId,
+        title: 'Organic Chemistry Model Kit',
+        description: 'Molecular geometry ball and stick modeling set.',
+        categoryId: categoryAcademic._id,
+        listingType: 'sale',
+        price: 3200,
+        condition: 'like-new',
+        campus: 'University of Colombo',
+        status: 'active',
+      });
+    });
+
+    it('returns recommendations for unauthenticated guest (trending/popular items)', async () => {
+      const res = await request(app).get('/api/listings/recommendations');
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data.recommendations)).toBe(true);
+    });
+
+    it('returns personalized recommendations for authenticated user', async () => {
+      const res = await request(app)
+        .get('/api/listings/recommendations')
+        .set('Authorization', `Bearer ${userBToken}`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data.recommendations)).toBe(true);
+      // User B should not see their own listings in recommendations
+      res.body.data.recommendations.forEach((item) => {
+        expect(item.sellerId?._id?.toString() || item.sellerId?.toString()).not.toBe(userBId);
+      });
+    });
+
+    it('returns similar listings for a target listing', async () => {
+      const res = await request(app).get(`/api/listings/${sampleListing._id}/similar`);
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data.similar)).toBe(true);
+      // Should not contain the target listing itself
+      const ids = res.body.data.similar.map((s) => s._id);
+      expect(ids).not.toContain(sampleListing._id.toString());
+    });
+  });
 });
+

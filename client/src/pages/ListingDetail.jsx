@@ -1,10 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { getListingById, createConversation, submitReport, claimListing, releaseClaim } from '../utils/api';
+import {
+  getListingById,
+  createConversation,
+  submitReport,
+  claimListing,
+  releaseClaim,
+  getSimilarListings,
+} from '../utils/api';
 import { useAuth } from '../context/AuthContext';
 import { useFavorites } from '../context/FavoritesContext';
 import { cn } from '../utils/cn';
 import { Modal } from '../components/ui/Modal';
+import { ListingCard } from '../components/ui/ListingCard';
 
 const CONDITION_LABELS = {
   new: 'Brand New',
@@ -90,6 +98,7 @@ export const ListingDetail = () => {
   const [reportError, setReportError] = useState('');
   const [claimLoading, setClaimLoading] = useState(false);
   const [claimError, setClaimError] = useState('');
+  const [similarListings, setSimilarListings] = useState([]);
 
   useEffect(() => {
     let cancelled = false;
@@ -109,6 +118,14 @@ export const ListingDetail = () => {
           setLoading(false);
         }
       });
+
+    getSimilarListings(id, { limit: 4 })
+      .then((res) => {
+        if (!cancelled) {
+          setSimilarListings(res.data?.similar || []);
+        }
+      })
+      .catch(() => {});
 
     return () => { cancelled = true; };
   }, [id]);
@@ -849,6 +866,37 @@ export const ListingDetail = () => {
             </aside>
           </div>
         </div>
+
+        {/* Similar Listings on Campus */}
+        {similarListings.length > 0 && (
+          <div className="max-w-7xl mx-auto px-margin md:px-margin-md lg:px-margin-lg mt-14 pt-8 border-t border-outline-variant/20">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="flex items-center gap-1.5 mb-1">
+                  <span className="w-2.5 h-2.5 rounded-full bg-secondary inline-block" />
+                  <span className="text-xs uppercase tracking-wider text-secondary font-semibold">
+                    You Might Also Like
+                  </span>
+                </div>
+                <h2 className="text-2xl font-bold text-on-surface">Similar Items on Campus</h2>
+              </div>
+              {listing?.categoryId && (
+                <Link
+                  to={`/browse?category=${listing.categoryId.slug || ''}`}
+                  className="text-xs font-semibold text-secondary hover:underline flex items-center gap-1"
+                >
+                  <span>More in this category</span>
+                  <span className="material-symbols-outlined text-sm">arrow_forward</span>
+                </Link>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {similarListings.map((sim) => (
+                <ListingCard key={sim._id} listing={sim} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Report Listing Modal */}

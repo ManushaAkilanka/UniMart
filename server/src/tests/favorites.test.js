@@ -439,6 +439,40 @@ describe('UniMart Favorites & User Profile API', () => {
       expect(res.body.data.user.avatarUrl).toBe('https://example.com/avatar.jpg');
     });
 
+    it('allows uploading a custom profile picture file via multipart/form-data', async () => {
+      const validJpegBuffer = Buffer.from([
+        0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46, 0x00, 0x01,
+      ]);
+
+      const res = await request(app)
+        .patch('/api/users/me')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .field('fullName', 'Alice Photo Profile')
+        .attach('avatar', validJpegBuffer, 'profile.jpg');
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.user.avatarUrl).toBeDefined();
+      expect(res.body.data.user.avatarUrl).toContain('unimart/avatars');
+
+      const userInDb = await User.findById(userAId).lean();
+      expect(userInDb.avatarUrl).toContain('unimart/avatars');
+    });
+
+    it('rejects avatar file upload with invalid magic bytes / file signature', async () => {
+      const fakeExeBuffer = Buffer.from('MZ Not a valid photo file at all');
+
+      const res = await request(app)
+        .patch('/api/users/me')
+        .set('Authorization', `Bearer ${tokenA}`)
+        .field('fullName', 'Alice Bad File')
+        .attach('avatar', fakeExeBuffer, 'virus.jpg');
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toContain('Invalid file signature');
+    });
+
     it('PREVENTS changing email via profile update (ignored, not persisted)', async () => {
       const originalEmail = userAData.email;
 

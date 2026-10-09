@@ -132,8 +132,10 @@ export const Browse = () => {
 
   const searchDebounceRef = useRef(null);
 
-  // Sync localSearch → URL after 400ms debounce
+  // Sync localSearch → URL after 400ms debounce (only when localSearch actually differs from current URL search)
   useEffect(() => {
+    if (localSearch === search) return;
+
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => {
       setSearchParams((prev) => {
@@ -145,7 +147,12 @@ export const Browse = () => {
       });
     }, 400);
     return () => clearTimeout(searchDebounceRef.current);
-  }, [localSearch, setSearchParams]);
+  }, [localSearch, search, setSearchParams]);
+
+  // Keep localSearch in sync when URL search param changes externally (e.g. from Navbar or links)
+  useEffect(() => {
+    setLocalSearch(search);
+  }, [search]);
 
   // Fetch listings when URL params change
   const fetchListings = useCallback(async () => {
@@ -184,7 +191,9 @@ export const Browse = () => {
       const next = new URLSearchParams(prev);
       if (value) next.set(key, value);
       else next.delete(key);
-      next.set('page', '1');
+      if (key !== 'page') {
+        next.set('page', '1');
+      }
       return next;
     });
   };
@@ -214,7 +223,14 @@ export const Browse = () => {
   };
 
   const handleSort = (val) => setParam('sort', val);
-  const handlePage = (p) => setParam('page', String(p));
+  const handlePage = (p) => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.set('page', String(p));
+      return next;
+    });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   // ── Active filter chips ──────────────────────────────────────────────────
   const activeChips = [

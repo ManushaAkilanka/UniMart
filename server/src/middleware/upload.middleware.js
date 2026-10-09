@@ -119,3 +119,51 @@ export const handleListingImageUpload = (req, res, next) => {
     }
   });
 };
+
+/**
+ * Middleware handling single profile avatar upload via Multer,
+ * file signature checking, and Cloudinary upload to 'unimart/avatars'.
+ * Sets req.body.avatarUrl to the uploaded image URL.
+ */
+export const handleAvatarUpload = (req, res, next) => {
+  upload.single('avatar')(req, res, async (err) => {
+    if (err) {
+      if (err.code === 'LIMIT_FILE_SIZE') {
+        return res.status(400).json({
+          success: false,
+          message: 'Avatar size exceeds the 5 MB limit. Please compress your photo.',
+        });
+      }
+      return res.status(400).json({
+        success: false,
+        message: `Upload error: ${err.message}`,
+      });
+    }
+
+    // If no file uploaded via multipart, proceed (supports JSON or existing URL fallback)
+    if (!req.file) {
+      return next();
+    }
+
+    try {
+      const detectedType = checkImageSignature(req.file.buffer);
+      if (!detectedType) {
+        return res.status(400).json({
+          success: false,
+          message: `Invalid file signature for "${req.file.originalname}". Only genuine JPEG, PNG, and WebP images are accepted.`,
+        });
+      }
+
+      const uploaded = await uploadToCloudinary(req.file.buffer, 'unimart/avatars');
+      req.body.avatarUrl = uploaded.url;
+      next();
+    } catch (uploadErr) {
+      console.error('[Upload Middleware] Cloudinary avatar upload failure:', uploadErr);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to process and upload avatar image. Please try again.',
+      });
+    }
+  });
+};
+

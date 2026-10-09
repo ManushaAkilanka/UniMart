@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { getListings, getCategories } from '../utils/api';
+import { getListings, getCategories, getRecommendations } from '../utils/api';
 import { ListingCard } from '../components/ui/ListingCard';
 import { useAuth } from '../context/AuthContext';
 
@@ -84,6 +84,7 @@ export const Home = () => {
   const { user } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [recommended, setRecommended] = useState({ data: null, loading: true, error: null });
   const [fresh, setFresh] = useState({ data: null, loading: true, error: null });
   const [popular, setPopular] = useState({ data: null, loading: true, error: null });
   const [freeItems, setFreeItems] = useState({ data: null, loading: true, error: null });
@@ -101,6 +102,14 @@ export const Home = () => {
   }, []);
 
   useEffect(() => {
+    getRecommendations({ limit: 4 })
+      .then((res) => {
+        setRecommended({ data: res.data?.recommendations || [], loading: false, error: null });
+      })
+      .catch(() => {
+        setRecommended({ data: [], loading: false, error: null });
+      });
+
     fetchSection({ sort: 'newest', limit: 4 }, setFresh);
     fetchSection({ sort: 'popular', limit: 4 }, setPopular);
     fetchSection({ listingType: 'free', sort: 'newest', limit: 4 }, setFreeItems);
@@ -260,6 +269,28 @@ export const Home = () => {
           })}
         </div>
       </section>
+
+      {/* ── RECOMMENDED FOR YOU ───────────────────────────────────────────── */}
+      {recommended.data?.length > 0 && (
+        <Section
+          eyebrow={user ? 'Personalized For You' : 'Recommended'}
+          title="Recommended For You"
+          subtitle={
+            user
+              ? 'Handpicked listings based on your campus, favorites, and recent activity.'
+              : 'Popular student listings trending across campus right now.'
+          }
+          href="/browse"
+          loading={recommended.loading}
+          error={recommended.error}
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-space-lg">
+            {recommended.data.map((l) => (
+              <ListingCard key={l._id} listing={l} />
+            ))}
+          </div>
+        </Section>
+      )}
 
       {/* ── FRESH ON CAMPUS ───────────────────────────────────────────────── */}
       <Section

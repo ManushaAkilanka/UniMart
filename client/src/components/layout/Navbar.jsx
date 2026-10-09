@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useFavorites } from '../../context/FavoritesContext';
 import { useUnreadCount } from '../../context/useUnreadCount';
 import { useNotifications } from '../../context/useNotifications';
+import { useTheme } from '../../context/ThemeContext';
 
 // ── Relative timestamp helper ────────────────────────────────────────────────
 function timeAgo(dateStr) {
@@ -142,14 +143,49 @@ const NotificationDropdown = ({ notifications, unreadCount, onMarkOne, onMarkAll
 // ── Navbar ───────────────────────────────────────────────────────────────────
 export const Navbar = ({ onOpenCampusModal }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [navSearch, setNavSearch] = useState('');
   const notifRef = useRef(null);
+  const searchInputRef = useRef(null);
 
   const { user, isAuthenticated } = useAuth();
   const { count: favCount } = useFavorites();
   const unreadCount = useUnreadCount();
   const { notifications, unreadCount: notifUnread, markOneRead, markAllRead } = useNotifications();
+  const { theme, isDark, toggleTheme } = useTheme();
+
+  // Sync navSearch with URL search param if on browse page
+  useEffect(() => {
+    if (location.pathname === '/browse') {
+      const q = new URLSearchParams(location.search).get('search') || '';
+      setNavSearch(q);
+    }
+  }, [location.pathname, location.search]);
+
+  // Global Cmd+K / Ctrl+K shortcut to focus search input
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
+  const handleSearchSubmit = (e) => {
+    e.preventDefault();
+    const query = navSearch.trim();
+    if (query) {
+      navigate(`/browse?search=${encodeURIComponent(query)}`);
+    } else {
+      navigate('/browse');
+    }
+    if (mobileMenuOpen) setMobileMenuOpen(false);
+  };
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -167,8 +203,8 @@ export const Navbar = ({ onOpenCampusModal }) => {
   const navLinks = [
     { label: 'Browse', path: '/browse' },
     { label: 'Categories', path: '/categories' },
-    { label: 'Wanted', path: '/wanted' },
-    { label: 'Free Items', path: '/free' },
+    { label: 'Wanted', path: '/browse?listingType=wanted' },
+    { label: 'Free Items', path: '/browse?listingType=free' },
   ];
 
   return (
@@ -202,25 +238,40 @@ export const Navbar = ({ onOpenCampusModal }) => {
 
         {/* Global Instant Search */}
         <div className="flex-1 max-w-lg hidden md:block">
-          <div className="relative flex items-center w-full">
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full">
             <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant pointer-events-none text-xl leading-none">
               search
             </span>
             <input
+              ref={searchInputRef}
               type="text"
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
               placeholder="Search textbooks, laptops, calculators, hostel items..."
-              className="w-full h-10 pl-11 pr-14 rounded-lg bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/70 font-body-md text-body-md shadow-level1 border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
+              className="w-full h-10 pl-11 pr-24 rounded-lg bg-surface-container-lowest text-on-surface placeholder:text-on-surface-variant/70 font-body-md text-body-md shadow-level1 border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
             />
-            <kbd className="absolute right-3 hidden lg:inline-flex items-center justify-center h-5 px-1.5 rounded bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm">
-              ⌘K
-            </kbd>
-          </div>
+            <div className="absolute right-2 flex items-center gap-1.5">
+              <kbd className="hidden lg:inline-flex items-center justify-center h-5 px-1.5 rounded bg-surface-container-high text-on-surface-variant font-code-sm text-code-sm pointer-events-none">
+                ⌘K
+              </kbd>
+              <button
+                type="submit"
+                aria-label="Submit search"
+                className="px-2.5 py-1 rounded bg-secondary text-on-secondary font-label-sm text-xs font-semibold hover:bg-secondary/90 transition-colors"
+              >
+                Go
+              </button>
+            </div>
+          </form>
         </div>
 
         {/* Navigation links */}
         <nav className="hidden lg:flex items-center gap-space-md xl:gap-space-lg shrink-0">
           {navLinks.map((link) => {
-            const isActive = location.pathname === link.path;
+            const currentFull = location.pathname + location.search;
+            const isActive = link.path.includes('?')
+              ? currentFull === link.path
+              : location.pathname === link.path && !location.search.includes('listingType');
             return (
               <Link
                 key={link.path}
@@ -358,6 +409,19 @@ export const Navbar = ({ onOpenCampusModal }) => {
             </div>
           )}
 
+          {/* Dark / Light Mode Toggle Button */}
+          <button
+            type="button"
+            onClick={toggleTheme}
+            aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+            className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container hover:text-on-surface transition-colors cursor-pointer flex items-center justify-center"
+          >
+            <span className="material-symbols-outlined text-xl leading-none">
+              {isDark ? 'light_mode' : 'dark_mode'}
+            </span>
+          </button>
+
           {/* Mobile hamburger toggle */}
           <button
             type="button"
@@ -380,17 +444,48 @@ export const Navbar = ({ onOpenCampusModal }) => {
             <span className="font-semibold">University of Colombo · Main Campus</span>
           </div>
 
+          {/* Mobile search bar */}
+          <form onSubmit={handleSearchSubmit} className="relative flex items-center w-full my-1">
+            <span className="material-symbols-outlined absolute left-3.5 text-on-surface-variant pointer-events-none text-xl leading-none">
+              search
+            </span>
+            <input
+              type="text"
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
+              placeholder="Search textbooks, laptops, hostel gear..."
+              className="w-full h-10 pl-11 pr-16 rounded-lg bg-surface-container text-on-surface placeholder:text-on-surface-variant/70 font-body-md text-body-md border border-outline-variant/30 focus:outline-none focus:ring-2 focus:ring-secondary/20 focus:border-secondary transition-all"
+            />
+            <button
+              type="submit"
+              className="absolute right-2 px-2.5 py-1 rounded bg-secondary text-on-secondary text-xs font-semibold"
+            >
+              Search
+            </button>
+          </form>
+
           <div className="flex flex-col gap-1 py-2">
-            {navLinks.map((link) => (
-              <Link
-                key={link.path}
-                to={link.path}
-                onClick={() => setMobileMenuOpen(false)}
-                className="px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const currentFull = location.pathname + location.search;
+              const isActive = link.path.includes('?')
+                ? currentFull === link.path
+                : location.pathname === link.path && !location.search.includes('listingType');
+              return (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    'px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm transition-colors',
+                    isActive
+                      ? 'bg-secondary/15 text-secondary font-semibold'
+                      : 'hover:bg-surface-container text-on-surface'
+                  )}
+                >
+                  {link.label}
+                </Link>
+              );
+            })}
 
             {isAuthenticated ? (
               <>
@@ -446,6 +541,23 @@ export const Navbar = ({ onOpenCampusModal }) => {
                 </Link>
               </div>
             )}
+
+            {/* Mobile Theme Toggle */}
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex items-center justify-between w-full px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="material-symbols-outlined text-xl text-secondary">
+                  {isDark ? 'light_mode' : 'dark_mode'}
+                </span>
+                <span>{isDark ? 'Light Mode' : 'Dark Mode'}</span>
+              </div>
+              <span className="text-xs uppercase font-semibold px-2 py-0.5 rounded bg-surface-container-high text-on-surface-variant">
+                {theme}
+              </span>
+            </button>
           </div>
 
           <Link to="/sell" onClick={() => setMobileMenuOpen(false)} className="w-full">
