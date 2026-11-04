@@ -58,6 +58,7 @@ export const Profile = () => {
   const [formErrors, setFormErrors] = useState({});
   const [avatarFile, setAvatarFile] = useState(null);
   const [avatarPreview, setAvatarPreview] = useState(null);
+  const [avatarLoadError, setAvatarLoadError] = useState(false);
   const filePickerRef = useRef(null);
 
   const handleFileChange = (e) => {
@@ -189,6 +190,7 @@ export const Profile = () => {
       }
 
       setProfile(res.data?.user);
+      setAvatarLoadError(false);
       handleRemovePhoto();
       setSaveSuccess(true);
       setEditing(false);
@@ -264,10 +266,11 @@ export const Profile = () => {
           {/* Avatar section */}
           <div className="relative bg-gradient-to-br from-secondary/20 via-secondary/10 to-surface-container h-32">
             <div className="absolute -bottom-10 left-8">
-              {displayUser?.avatarUrl ? (
+              {displayUser?.avatarUrl && !avatarLoadError ? (
                 <img
                   src={displayUser.avatarUrl}
                   alt={displayUser.fullName}
+                  onError={() => setAvatarLoadError(true)}
                   className="w-20 h-20 rounded-2xl object-cover border-4 border-surface-container-lowest shadow-level2"
                 />
               ) : (

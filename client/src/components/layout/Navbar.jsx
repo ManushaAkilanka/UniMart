@@ -376,6 +376,7 @@ export const Navbar = ({ onOpenCampusModal }) => {
               {/* User Profile Avatar */}
               <Link to="/profile" className="ml-1 shrink-0" aria-label="My Profile">
                 <Avatar
+                  src={user?.avatarUrl}
                   name={user?.fullName || 'Student'}
                   size="md"
                   isVerified={Boolean(user?.isVerified)}

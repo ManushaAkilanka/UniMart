@@ -13,6 +13,11 @@ export default defineConfig({
         changeOrigin: true,
         secure: false,
       },
+      '/uploads': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+      },
       // Proxy Socket.IO WebSocket upgrades
       '/socket.io': {
         target: 'http://localhost:5000',

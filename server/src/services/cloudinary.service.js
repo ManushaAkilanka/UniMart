@@ -1,5 +1,12 @@
 import { v2 as cloudinary } from 'cloudinary';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { ENV } from '../config/env.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.resolve(__dirname, '../../uploads');
 
 let isConfigured = false;
 
@@ -13,18 +20,41 @@ if (ENV.CLOUDINARY_CLOUD_NAME && ENV.CLOUDINARY_API_KEY && ENV.CLOUDINARY_API_SE
 }
 
 /**
- * Upload an image buffer to Cloudinary.
+ * Detect extension from buffer magic bytes
+ */
+function getExtensionFromBuffer(buffer) {
+  if (buffer && buffer.length >= 8) {
+    if (buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) return 'jpg';
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'png';
+    if (buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') return 'webp';
+  }
+  return 'jpg';
+}
+
+/**
+ * Upload an image buffer to Cloudinary or fallback to local disk storage.
  * @param {Buffer} buffer - Raw file buffer
- * @param {string} folder - Destination folder on Cloudinary
+ * @param {string} folder - Destination folder on Cloudinary / local category
  * @returns {Promise<{ url: string, publicId: string }>}
  */
 export async function uploadToCloudinary(buffer, folder = 'unimart/listings') {
   if (!isConfigured) {
-    // Graceful fallback for local development & testing environments
-    const mockPublicId = `${folder}/mock_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Graceful and working fallback for local development & testing environments
+    const ext = getExtensionFromBuffer(buffer);
+    const safePrefix = folder.replace(/[^a-zA-Z0-9_-]/g, '_');
+    const filename = `${safePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+
+    if (!fs.existsSync(UPLOADS_DIR)) {
+      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    }
+
+    const filePath = path.join(UPLOADS_DIR, filename);
+    await fs.promises.writeFile(filePath, buffer);
+
+    const baseUrl = process.env.API_URL || `http://localhost:${ENV.PORT || 5000}`;
     return {
-      url: `https://res.cloudinary.com/demo/image/upload/${mockPublicId}.jpg`,
-      publicId: mockPublicId,
+      url: `${baseUrl}/uploads/${filename}`,
+      publicId: `local/${filename}`,
     };
   }
 
@@ -51,12 +81,27 @@ export async function uploadToCloudinary(buffer, folder = 'unimart/listings') {
 }
 
 /**
- * Delete an asset from Cloudinary by its publicId.
+ * Delete an asset from Cloudinary or local disk by its publicId.
  * @param {string} publicId - The public ID of the resource
  * @returns {Promise<{ result: string }>}
  */
 export async function deleteFromCloudinary(publicId) {
   if (!publicId) return { result: 'not_found' };
+
+  if (publicId.startsWith('local/')) {
+    const filename = publicId.replace('local/', '');
+    const filePath = path.join(UPLOADS_DIR, filename);
+    if (fs.existsSync(filePath)) {
+      try {
+        await fs.promises.unlink(filePath);
+        return { result: 'ok' };
+      } catch (err) {
+        console.warn(`[Local Upload] Failed to delete file ${filename}:`, err.message);
+        return { result: 'error', error: err.message };
+      }
+    }
+    return { result: 'ok' };
+  }
 
   if (!isConfigured) {
     return { result: 'ok' };
@@ -69,3 +114,4 @@ export async function deleteFromCloudinary(publicId) {
     return { result: 'error', error: err.message };
   }
 }
+

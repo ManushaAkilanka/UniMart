@@ -252,7 +252,7 @@ const DEMO_ITEMS = [
     condition: 'used-good',
     campus: 'University of Colombo',
     meetupSpots: ['FoT Pitipana Workshop Gate', 'UCSC Canteen'],
-    images: [{ url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800', publicId: 'demo/solder_kit' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800', publicId: 'demo/solder_kit' }],
     viewCount: 76,
   },
   {
@@ -412,7 +412,7 @@ const DEMO_ITEMS = [
     condition: 'like-new',
     campus: 'University of Colombo',
     meetupSpots: ['Main Library Entrance', 'Arts Quad'],
-    images: [{ url: 'https://images.unsplash.com/photo-1609592426868-b76922eb5520?w=800', publicId: 'demo/powerbank' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1609091839311-d5365f9ff1c5?w=800', publicId: 'demo/powerbank' }],
     viewCount: 92,
   },
   {
@@ -468,7 +468,7 @@ const DEMO_ITEMS = [
     condition: 'like-new',
     campus: 'University of Colombo',
     meetupSpots: ['College House Lawn', 'Science Faculty Gate'],
-    images: [{ url: 'https://images.unsplash.com/photo-1532012164546-f432f2e3edd4?w=800', publicId: 'demo/campbell' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?w=800', publicId: 'demo/campbell' }],
     viewCount: 110,
   },
   {
@@ -574,7 +574,7 @@ const DEMO_ITEMS = [
     condition: 'used-good',
     campus: 'University of Moratuwa',
     meetupSpots: ['Electrical Eng Dept Lobby', 'Moratuwa Main Canteen'],
-    images: [{ url: 'https://images.unsplash.com/photo-1581092335397-9583fe92d232?w=800', publicId: 'demo/wanted_tools' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800', publicId: 'demo/wanted_tools' }],
     viewCount: 49,
   },
 
@@ -818,7 +818,7 @@ const DEMO_ITEMS = [
     condition: 'used-good',
     campus: 'University of Colombo',
     meetupSpots: ['University Ground Pavilion', 'Reid Avenue Sports Complex'],
-    images: [{ url: 'https://images.unsplash.com/photo-1531415074868-036b1c5d53ec?w=800', publicId: 'demo/cricket_bat' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1540747913346-19e32dc3e97e?w=800', publicId: 'demo/cricket_bat' }],
     viewCount: 122,
   },
   {
@@ -1099,7 +1099,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Kelaniya',
     meetupSpots: ['Faculty of Computing & Technology Lab Block', 'Kelaniya Main Library'],
-    images: [{ url: 'https://images.unsplash.com/photo-1532012164546-f432f2e3edd4?w=800', publicId: 'demo/extra_elmasri_db' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=800', publicId: 'demo/extra_elmasri_db' }],
     viewCount: 71,
   },
   {
@@ -1162,7 +1162,7 @@ const EXTRA_LISTINGS = [
     condition: 'like-new',
     campus: 'University of Colombo',
     meetupSpots: ['Science Quadrangle Canteen', 'Main Library Steps'],
-    images: [{ url: 'https://images.unsplash.com/photo-1527866959252-de636956baf9?w=800', publicId: 'demo/extra_graph_paper' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1586075010923-2dd4570fb338?w=800', publicId: 'demo/extra_graph_paper' }],
     viewCount: 31,
   },
   {
@@ -1410,7 +1410,7 @@ const EXTRA_LISTINGS = [
     condition: 'like-new',
     campus: 'University of Colombo',
     meetupSpots: ['FoT Pitipana Tech Canteen', 'UCSC Lobby'],
-    images: [{ url: 'https://images.unsplash.com/photo-1598327105854-ac9df80e8ac8?w=800', publicId: 'demo/extra_sandisk_256' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1616401784845-180882ba9ba8?w=800', publicId: 'demo/extra_sandisk_256' }],
     viewCount: 74,
   },
   {
@@ -1423,7 +1423,7 @@ const EXTRA_LISTINGS = [
     condition: 'like-new',
     campus: 'University of Moratuwa',
     meetupSpots: ['Sumanadasa Building Lobby', 'Canteen 01'],
-    images: [{ url: 'https://images.unsplash.com/photo-1593640408182-31c228a0b8dc?w=800', publicId: 'demo/extra_hdmi_vga_bundle' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800', publicId: 'demo/extra_hdmi_vga_bundle' }],
     viewCount: 59,
   },
   {
@@ -1514,7 +1514,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Moratuwa',
     meetupSpots: ['Architecture Faculty Court', 'Sumanadasa Building Lobby'],
-    images: [{ url: 'https://images.unsplash.com/photo-1518791841217-8f162f1912da?w=800', publicId: 'demo/extra_wacom_intuos' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1527864550417-7fd91fc51a46?w=800', publicId: 'demo/extra_wacom_intuos' }],
     viewCount: 98,
   },
   {
@@ -1551,7 +1551,7 @@ const EXTRA_LISTINGS = [
     price: 0,
     campus: 'University of Ruhuna',
     meetupSpots: ['Faculty of Science Gate', 'Ruhuna Main Canteen'],
-    images: [{ url: 'https://images.unsplash.com/photo-1588702547954-4800eedba9de?w=800', publicId: 'demo/extra_free_acer_parts' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1588702547919-26089e690ecc?w=800', publicId: 'demo/extra_free_acer_parts' }],
     viewCount: 149,
   },
   {
@@ -1672,7 +1672,7 @@ const EXTRA_LISTINGS = [
     condition: 'like-new',
     campus: 'University of Colombo',
     meetupSpots: ['Bloomfield Hostel Gate', 'College House Roundabout'],
-    images: [{ url: 'https://images.unsplash.com/photo-1527515637462-cff94aca208b?w=800', publicId: 'demo/extra_drying_rack' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1582735689369-4fe89db7114c?w=800', publicId: 'demo/extra_drying_rack' }],
     viewCount: 91,
   },
   {
@@ -1918,7 +1918,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Peradeniya',
     meetupSpots: ['Peradeniya Botanical Garden Gate', 'Faculty of Arts Lawn'],
-    images: [{ url: 'https://images.unsplash.com/photo-1520302519878-bf084e6f49ec?w=800', publicId: 'demo/extra_floor_cushions' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1584100936595-c0654b55a2e2?w=800', publicId: 'demo/extra_floor_cushions' }],
     viewCount: 36,
   },
   {
@@ -2281,7 +2281,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Colombo',
     meetupSpots: ['College House Lawn', 'UCSC Main Entrance'],
-    images: [{ url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800', publicId: 'demo/extra_rent_gown' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1523240795612-9a054b0db644?w=800', publicId: 'demo/extra_rent_gown' }],
     viewCount: 192,
   },
   {
@@ -2295,7 +2295,7 @@ const EXTRA_LISTINGS = [
     urgency: 'high',
     campus: 'University of Moratuwa',
     meetupSpots: ['Sumanadasa Building Lobby', 'Moratuwa Main Gate'],
-    images: [{ url: 'https://images.unsplash.com/photo-1523050854058-8df90110c9f1?w=800', publicId: 'demo/extra_wanted_stole' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1627556704290-2b1f5853ff78?w=800', publicId: 'demo/extra_wanted_stole' }],
     viewCount: 76,
   },
   {
@@ -2375,7 +2375,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Peradeniya',
     meetupSpots: ['University Ground Pavilion', 'Peradeniya Main Gate'],
-    images: [{ url: 'https://images.unsplash.com/photo-1531415074868-036b1c5d53ec?w=800', publicId: 'demo/extra_sg_cricket_bat' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1624526267942-ab0ff8a3e972?w=800', publicId: 'demo/extra_sg_cricket_bat' }],
     viewCount: 121,
   },
   {
@@ -2453,7 +2453,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Ruhuna',
     meetupSpots: ['Sports Complex Parking', 'Faculty of Science Gate'],
-    images: [{ url: 'https://images.unsplash.com/photo-1598971639058-fab3c3109a34?w=800', publicId: 'demo/extra_speed_rope' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1434596922112-19c563067271?w=800', publicId: 'demo/extra_speed_rope' }],
     viewCount: 52,
   },
   {
@@ -2544,7 +2544,7 @@ const EXTRA_LISTINGS = [
     condition: 'used-good',
     campus: 'University of Colombo',
     meetupSpots: ['Colombo Gymnasium Steps', 'Reid Avenue Canteen'],
-    images: [{ url: 'https://images.unsplash.com/photo-1547488999-ea2b0c5a9c6b?w=800', publicId: 'demo/extra_adidas_gym_bag' }],
+    images: [{ url: 'https://images.unsplash.com/photo-1553062407-98eeb64c6a62?w=800', publicId: 'demo/extra_adidas_gym_bag' }],
     viewCount: 97,
   },
   {

@@ -35,6 +35,25 @@
         } catch (e) {}
       })();
     </script>
+    <!-- Critical Skip-Link CSS to prevent FOUC flash on page load -->
+    <style>
+      .skip-link {
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+        z-index: 100;
+        background: #006c4a;
+        color: #ffffff;
+        padding: 8px 16px;
+        font-family: inherit;
+        text-decoration: none;
+        border-radius: 0 0 8px 0;
+      }
+      .skip-link:focus {
+        top: 0;
+        left: 0;
+      }
+    </style>
   </head>
   <body class="bg-surface font-sans text-body-md text-on-surface antialiased">
     <a href="#main-content" class="skip-link">Skip to main content</a>

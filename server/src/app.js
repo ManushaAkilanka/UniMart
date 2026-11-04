@@ -1,3 +1,5 @@
+import path from 'path';
+import { fileURLToPath } from 'url';
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -8,7 +10,12 @@ import mongoSanitize from './middleware/mongoSanitize.js';
 import apiRoutes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const UPLOADS_DIR = path.resolve(__dirname, '../uploads');
+
 const app = express();
+
 
 // Security & utility middlewares
 app.use(
@@ -46,6 +53,9 @@ app.use(mongoSanitize({ replaceWith: '_' }));
 if (ENV.NODE_ENV === 'development') {
   app.use(morgan('dev'));
 }
+
+// Static uploads directory (for avatars and listings when local storage fallback is used)
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 // API Routes
 app.use('/api', apiRoutes);
