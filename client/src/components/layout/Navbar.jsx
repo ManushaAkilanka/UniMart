@@ -48,7 +48,7 @@ const NotificationDropdown = ({ notifications, unreadCount, onMarkOne, onMarkAll
 
   return (
     <div
-      className="absolute right-0 top-full mt-2 w-80 bg-surface rounded-xl shadow-level3 border border-outline-variant/20 overflow-hidden z-50"
+      className="absolute right-0 top-full mt-2 w-80 bg-surface rounded-xl shadow-level3 border border-outline-variant/20 overflow-hidden z-50 animate-fadeIn"
       role="dialog"
       aria-label="Notifications"
     >
@@ -140,21 +140,135 @@ const NotificationDropdown = ({ notifications, unreadCount, onMarkOne, onMarkAll
   );
 };
 
+// ── UserDropdown ─────────────────────────────────────────────────────────────
+const UserDropdown = ({ user, onLogout, onClose }) => {
+  return (
+    <div
+      className="absolute right-0 top-full mt-2 w-64 bg-surface rounded-xl shadow-level3 border border-outline-variant/20 overflow-hidden z-50 animate-fadeIn"
+      role="menu"
+      aria-label="User profile menu"
+    >
+      {/* User Info Header */}
+      <div className="px-4 py-3 border-b border-outline-variant/20 bg-surface-container-low/60">
+        <div className="flex items-center gap-2">
+          <p className="font-label-md text-label-md text-on-surface font-semibold truncate">
+            {user?.fullName || 'Student'}
+          </p>
+          {user?.isVerified && (
+            <span
+              className="inline-flex items-center text-secondary"
+              title="Verified Student"
+            >
+              <span className="material-symbols-outlined text-sm leading-none">verified</span>
+            </span>
+          )}
+        </div>
+        <p className="font-body-sm text-body-sm text-on-surface-variant truncate">
+          {user?.email || ''}
+        </p>
+        {user?.campus && (
+          <p className="font-code-sm text-[11px] text-secondary truncate mt-0.5">
+            {user.campus}
+          </p>
+        )}
+      </div>
+
+      {/* Navigation Links */}
+      <div className="py-1">
+        <Link
+          to="/profile"
+          onClick={onClose}
+          className="flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors"
+          role="menuitem"
+        >
+          <span className="material-symbols-outlined text-xl text-on-surface-variant">person</span>
+          <span>My Profile</span>
+        </Link>
+        <Link
+          to="/my-listings"
+          onClick={onClose}
+          className="flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors"
+          role="menuitem"
+        >
+          <span className="material-symbols-outlined text-xl text-on-surface-variant">inventory_2</span>
+          <span>My Listings</span>
+        </Link>
+        <Link
+          to="/saved"
+          onClick={onClose}
+          className="flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors"
+          role="menuitem"
+        >
+          <span className="material-symbols-outlined text-xl text-on-surface-variant">favorite</span>
+          <span>Saved Items</span>
+        </Link>
+        <Link
+          to="/dashboard"
+          onClick={onClose}
+          className="flex items-center gap-3 px-4 py-2 text-sm text-on-surface hover:bg-surface-container transition-colors"
+          role="menuitem"
+        >
+          <span className="material-symbols-outlined text-xl text-on-surface-variant">dashboard</span>
+          <span>Dashboard</span>
+        </Link>
+        {(user?.role === 'moderator' || user?.role === 'admin') && (
+          <Link
+            to="/moderation"
+            onClick={onClose}
+            className="flex items-center gap-3 px-4 py-2 text-sm text-secondary hover:bg-secondary-container/20 transition-colors"
+            role="menuitem"
+          >
+            <span className="material-symbols-outlined text-xl">admin_panel_settings</span>
+            <span>Moderation Console</span>
+          </Link>
+        )}
+      </div>
+
+      {/* Sign Out Button */}
+      <div className="border-t border-outline-variant/20 p-1 bg-surface-container-low/30">
+        <button
+          type="button"
+          onClick={() => {
+            onClose();
+            onLogout();
+          }}
+          className="w-full flex items-center gap-3 px-3 py-2 text-sm text-error hover:bg-error-container/20 rounded-lg transition-colors font-semibold text-left cursor-pointer"
+          role="menuitem"
+        >
+          <span className="material-symbols-outlined text-xl">logout</span>
+          <span>Sign Out</span>
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // ── Navbar ───────────────────────────────────────────────────────────────────
 export const Navbar = ({ onOpenCampusModal }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [navSearch, setNavSearch] = useState('');
   const notifRef = useRef(null);
+  const userMenuRef = useRef(null);
   const searchInputRef = useRef(null);
 
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, logout } = useAuth();
   const { count: favCount } = useFavorites();
   const unreadCount = useUnreadCount();
   const { notifications, unreadCount: notifUnread, markOneRead, markAllRead } = useNotifications();
   const { theme, isDark, toggleTheme } = useTheme();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   // Sync navSearch with URL search param if on browse page
   useEffect(() => {
@@ -187,15 +301,31 @@ export const Navbar = ({ onOpenCampusModal }) => {
     if (mobileMenuOpen) setMobileMenuOpen(false);
   };
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handler = (e) => {
       if (notifRef.current && !notifRef.current.contains(e.target)) {
         setNotifOpen(false);
       }
+      if (userMenuRef.current && !userMenuRef.current.contains(e.target)) {
+        setUserMenuOpen(false);
+      }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  // Close menus on Escape key
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setNotifOpen(false);
+        setUserMenuOpen(false);
+        setMobileMenuOpen(false);
+      }
+    };
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
   }, []);
 
   const closeNotif = useCallback(() => setNotifOpen(false), []);
@@ -208,15 +338,50 @@ export const Navbar = ({ onOpenCampusModal }) => {
   ];
 
   return (
-    <header className="fixed top-0 left-0 right-0 w-full z-50 bg-surface/90 backdrop-blur-xl shadow-level1 border-b border-outline-variant/20">
+    <header className="fixed top-0 left-0 right-0 w-full z-50 bg-surface/95 dark:bg-surface backdrop-blur-xl shadow-level1 border-b border-outline-variant/20">
       <div className="h-20 max-w-7xl mx-auto px-margin md:px-margin-md lg:px-margin-lg flex items-center justify-between gap-space-md">
         {/* Brand & Campus Switcher */}
         <div className="flex items-center gap-space-md shrink-0">
-          <Link to="/" className="flex items-center gap-2 group">
-            <img src="/logo.svg" alt="UniMart Brand Logo" className="h-8 w-auto object-contain" />
-            <span className="font-headline-md text-headline-md tracking-tight text-on-surface">
-              UniMart
-            </span>
+          <Link to="/" className="flex items-center gap-2 group" aria-label="UniMart home">
+            {/* Inline SVG so fill="currentColor" on "Uni" text inherits CSS color (on-surface token).
+                This makes "Uni" dark on light backgrounds and light on dark backgrounds automatically. */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 160 40"
+              fill="none"
+              className="h-8 w-auto text-on-surface"
+              aria-hidden="true"
+            >
+              {/* Shield badge — bright green so it's visible in both modes */}
+              <rect x="2" y="6" width="28" height="28" rx="8" fill="#10B981" />
+              <path
+                d="M9 13H23C23 18 20 25 16 27C12 25 9 18 9 13Z"
+                stroke="#ffffff"
+                strokeWidth="2.5"
+                strokeLinejoin="round"
+                fill="#059669"
+              />
+              <path
+                d="M12 17L15 20L20 15"
+                stroke="#ffffff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              {/* Wordmark — "Uni" uses currentColor (inherits text-on-surface), "Mart" is brand green */}
+              <text
+                x="38"
+                y="27"
+                fontFamily="Inter, system-ui, sans-serif"
+                fontSize="20"
+                fontWeight="800"
+                letterSpacing="-0.5"
+              >
+                <tspan fill="currentColor">Uni</tspan>
+                <tspan fill="#10B981">Mart</tspan>
+              </text>
+            </svg>
+            {/* No duplicate "UniMart" span — the SVG wordmark above is the logo text */}
           </Link>
 
           <button
@@ -224,13 +389,13 @@ export const Navbar = ({ onOpenCampusModal }) => {
             onClick={onOpenCampusModal}
             className="hidden xl:flex items-center gap-space-xs px-space-sm py-space-xs rounded-full bg-surface-container hover:bg-surface-container-high transition-colors text-left"
           >
-            <span className="material-symbols-outlined text-secondary text-base leading-none">
+            <span className="material-symbols-outlined text-secondary dark:text-secondary-fixed text-base leading-none">
               location_on
             </span>
             <span className="font-label-sm text-label-sm text-on-surface font-semibold">
               {user?.campus || 'University of Colombo · Main Campus'}
             </span>
-            <span className="font-label-sm text-label-sm text-secondary hover:underline ml-space-xs font-semibold">
+            <span className="font-label-sm text-label-sm text-secondary dark:text-secondary-fixed hover:underline ml-space-xs font-semibold">
               Change
             </span>
           </button>
@@ -373,25 +538,42 @@ export const Navbar = ({ onOpenCampusModal }) => {
                 )}
               </div>
 
-              {/* User Profile Avatar */}
-              <Link to="/profile" className="ml-1 shrink-0" aria-label="My Profile">
-                <Avatar
-                  src={user?.avatarUrl}
-                  name={user?.fullName || 'Student'}
-                  size="md"
-                  isVerified={Boolean(user?.isVerified)}
-                  verificationTitle={user?.email ? `@${user.email.split('@')[1]} verified student` : 'Verified student'}
-                />
-              </Link>
+              {/* User Profile Avatar & Dropdown */}
+              <div className="relative ml-1 shrink-0" ref={userMenuRef}>
+                <button
+                  type="button"
+                  id="user-menu-button"
+                  aria-label="User account menu"
+                  aria-expanded={userMenuOpen}
+                  aria-haspopup="true"
+                  onClick={() => setUserMenuOpen((o) => !o)}
+                  className="flex items-center gap-1 p-0.5 rounded-full hover:ring-2 hover:ring-secondary/40 transition-all focus:outline-none cursor-pointer"
+                >
+                  <Avatar
+                    src={user?.avatarUrl}
+                    name={user?.fullName || 'Student'}
+                    size="md"
+                    isVerified={Boolean(user?.isVerified)}
+                    verificationTitle={user?.email ? `@${user.email.split('@')[1]} verified student` : 'Verified student'}
+                  />
+                  <span className="material-symbols-outlined text-on-surface-variant text-base hidden sm:inline-block">
+                    {userMenuOpen ? 'expand_less' : 'expand_more'}
+                  </span>
+                </button>
+
+                {userMenuOpen && (
+                  <UserDropdown
+                    user={user}
+                    onLogout={handleLogout}
+                    onClose={() => setUserMenuOpen(false)}
+                  />
+                )}
+              </div>
             </>
           ) : (
             // ── Unauthenticated: Sign In + Register ─────────────────────────────
-            // Before: Register used variant="secondary" → dark brand-navy pill, illegible
-            // After:  Register uses variant="outline" with secondary text colour — readable
-            //         on the light navbar, clearly distinct from "Sign In" (which uses
-            //         outline too but without the colour override so it reads as the primary
-            //         CTA via its left-to-right order). A subtle border-secondary ring makes
-            //         it visually pop without going dark.
+            // Dark mode fix: secondary (#006c4a) on dark surface (#0F172A) fails WCAG AA.
+            // Use dark:text-secondary-fixed (#85f8c4) which gives ~9:1 contrast on dark bg.
             <div className="flex items-center gap-2">
               <Link to="/login">
                 <Button variant="ghost" size="sm">
@@ -402,7 +584,7 @@ export const Navbar = ({ onOpenCampusModal }) => {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="border-secondary/40 text-secondary hover:bg-secondary/8 hover:border-secondary"
+                  className="border-secondary/40 text-secondary dark:text-secondary-fixed dark:border-secondary-fixed/40 hover:bg-secondary/8 dark:hover:bg-secondary-fixed/10 hover:border-secondary dark:hover:border-secondary-fixed"
                 >
                   Register
                 </Button>
@@ -491,6 +673,22 @@ export const Navbar = ({ onOpenCampusModal }) => {
             {isAuthenticated ? (
               <>
                 <Link
+                  to="/profile"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl text-secondary">person</span>
+                  <span>My Profile</span>
+                </Link>
+                <Link
+                  to="/my-listings"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
+                >
+                  <span className="material-symbols-outlined text-xl text-on-surface-variant">inventory_2</span>
+                  <span>My Listings</span>
+                </Link>
+                <Link
                   to="/saved"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center justify-between px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
@@ -506,12 +704,12 @@ export const Navbar = ({ onOpenCampusModal }) => {
                   )}
                 </Link>
                 <Link
-                  to="/profile"
+                  to="/dashboard"
                   onClick={() => setMobileMenuOpen(false)}
                   className="flex items-center gap-2 px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm hover:bg-surface-container transition-colors"
                 >
-                  <span className="material-symbols-outlined text-xl text-secondary">person</span>
-                  <span>My Profile</span>
+                  <span className="material-symbols-outlined text-xl text-on-surface-variant">dashboard</span>
+                  <span>Dashboard</span>
                 </Link>
                 {(user?.role === 'moderator' || user?.role === 'admin') && (
                   <Link
@@ -523,6 +721,19 @@ export const Navbar = ({ onOpenCampusModal }) => {
                     <span>Moderation Console</span>
                   </Link>
                 )}
+                <div className="pt-2 mt-1 border-t border-outline-variant/20">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMobileMenuOpen(false);
+                      handleLogout();
+                    }}
+                    className="flex items-center gap-2 w-full px-space-sm py-2 rounded-lg font-headline-sm text-headline-sm text-error hover:bg-error-container/20 transition-colors text-left cursor-pointer"
+                  >
+                    <span className="material-symbols-outlined text-xl">logout</span>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </>
             ) : (
               <div className="flex items-center gap-2 pt-2 border-t border-outline-variant/20">
@@ -535,7 +746,7 @@ export const Navbar = ({ onOpenCampusModal }) => {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="w-full border-secondary/40 text-secondary hover:bg-secondary/8 hover:border-secondary"
+                    className="w-full border-secondary/40 text-secondary dark:text-secondary-fixed dark:border-secondary-fixed/40 hover:bg-secondary/8 dark:hover:bg-secondary-fixed/10 hover:border-secondary dark:hover:border-secondary-fixed"
                   >
                     Register
                   </Button>

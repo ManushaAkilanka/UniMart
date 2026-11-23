@@ -9,6 +9,7 @@
  * PATCH /api/conversations/:id/messages/:messageId/proposal – Accept/decline a meetup proposal
  */
 import mongoose from 'mongoose';
+import { z } from 'zod';
 import { Conversation, Message, Listing, User } from '../models/index.js';
 import {
   emitNewMessage,
@@ -19,6 +20,29 @@ import {
 import { notifyNewMessage } from '../services/notification.service.js';
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
+
+const createConversationSchema = z.object({
+  listingId: z.string().regex(OBJECT_ID_REGEX, 'Valid listingId is required.'),
+}).strict();
+
+const sendMessageSchema = z.object({
+  body: z.string().trim().min(1, 'Message body is required.').max(1000, 'Message cannot exceed 1000 characters.'),
+  messageType: z.enum(['text', 'meetup_proposal', 'image', 'system']).default('text'),
+  proposalDetails: z.object({
+    location: z.string().trim().min(1, 'Meetup proposals require a location and handover time.'),
+    locationNotes: z.string().trim().nullable().optional(),
+    meetupTime: z.string().trim().min(1, 'Meetup proposals require a location and handover time.'),
+    timeNotes: z.string().trim().nullable().optional(),
+    amount: z.number().nullable().optional(),
+    status: z.enum(['proposed', 'accepted', 'declined']).optional(),
+  }).optional(),
+}).strict();
+
+const proposalResponseSchema = z.object({
+  status: z.enum(['accepted', 'declined'], {
+    errorMap: () => ({ message: "Status must be 'accepted' or 'declined'." }),
+  }),
+}).strict();
 
 // ── GET /api/conversations ────────────────────────────────────────────────────
 export const getConversations = async (req, res, next) => {
@@ -113,15 +137,16 @@ export const getUnreadCount = async (req, res, next) => {
 // ── POST /api/conversations ───────────────────────────────────────────────────
 export const createOrGetConversation = async (req, res, next) => {
   try {
-    const buyerId = req.user._id;
-    const { listingId } = req.body;
-
-    if (!listingId || !OBJECT_ID_REGEX.test(listingId)) {
+    const parse = createConversationSchema.safeParse(req.body);
+    if (!parse.success) {
       return res.status(400).json({
         success: false,
-        message: 'Valid listingId is required.',
+        message: parse.error.errors[0]?.message || 'Valid listingId is required.',
       });
     }
+
+    const buyerId = req.user._id;
+    const { listingId } = parse.data;
 
     const listing = await Listing.findById(listingId);
     if (!listing) {
@@ -337,7 +362,6 @@ export const sendMessage = async (req, res, next) => {
   try {
     const { id } = req.params;
     const userId = req.user._id;
-    const { body, messageType = 'text', proposalDetails } = req.body;
 
     if (!OBJECT_ID_REGEX.test(id)) {
       return res.status(400).json({
@@ -345,6 +369,16 @@ export const sendMessage = async (req, res, next) => {
         message: 'Invalid conversation ID.',
       });
     }
+
+    const parse = sendMessageSchema.safeParse(req.body);
+    if (!parse.success) {
+      return res.status(400).json({
+        success: false,
+        message: parse.error.errors[0]?.message || 'Validation error',
+      });
+    }
+
+    const { body, messageType = 'text', proposalDetails } = parse.data;
 
     const conversation = await Conversation.findById(id);
     if (!conversation) {
@@ -484,14 +518,16 @@ export const respondToMeetupProposal = async (req, res, next) => {
   try {
     const { id, messageId } = req.params;
     const userId = req.user._id;
-    const { status } = req.body;
 
-    if (!['accepted', 'declined'].includes(status)) {
+    const parse = proposalResponseSchema.safeParse(req.body);
+    if (!parse.success) {
       return res.status(400).json({
         success: false,
-        message: "Status must be 'accepted' or 'declined'.",
+        message: parse.error.errors[0]?.message || "Status must be 'accepted' or 'declined'.",
       });
     }
+
+    const { status } = parse.data;
 
     if (!OBJECT_ID_REGEX.test(id) || !OBJECT_ID_REGEX.test(messageId)) {
       return res.status(400).json({

@@ -2,11 +2,19 @@ import { Router } from 'express';
 import * as authController from '../controllers/auth.controller.js';
 import { requireAuth } from '../middleware/auth.middleware.js';
 import { validateRequest } from '../middleware/validate.js';
-import { registerSchema, loginSchema, verifyEmailSchema } from '../middleware/auth.schema.js';
+import {
+  registerSchema,
+  loginSchema,
+  verifyEmailSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from '../middleware/auth.schema.js';
 import {
   loginRateLimiter,
   registerRateLimiter,
   verifyRateLimiter,
+  forgotPasswordRateLimiter,
+  resetPasswordRateLimiter,
 } from '../middleware/rateLimiter.js';
 
 const router = Router();
@@ -27,6 +35,22 @@ router.get('/me', requireAuth, authController.getMe);
 
 // POST /api/auth/verify-email (rate-limited)
 router.post('/verify-email', verifyRateLimiter, validateRequest(verifyEmailSchema), authController.verifyEmail);
+
+// POST /api/auth/forgot-password (rate-limited)
+router.post(
+  '/forgot-password',
+  forgotPasswordRateLimiter,
+  validateRequest(forgotPasswordSchema),
+  authController.forgotPassword
+);
+
+// POST /api/auth/reset-password (rate-limited)
+router.post(
+  '/reset-password',
+  resetPasswordRateLimiter,
+  validateRequest(resetPasswordSchema),
+  authController.resetPassword
+);
 
 // ── Google OAuth 2.0 ──────────────────────────────────────────────────────────
 // GET /api/auth/google (redirects to Google login)

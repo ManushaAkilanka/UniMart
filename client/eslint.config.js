@@ -4,6 +4,7 @@ import reactPlugin from 'eslint-plugin-react';
 import reactHooksPlugin from 'eslint-plugin-react-hooks';
 
 export default [
+  { ignores: ['dist/**', 'node_modules/**', '.vite-temp/**'] },
   js.configs.recommended,
   {
     files: ['**/*.{js,jsx}'],

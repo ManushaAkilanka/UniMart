@@ -143,6 +143,7 @@ export const createListingSchema = z.object({
         .default([]),
       status: z.enum(['active', 'pending', 'hidden']).optional(),
     })
+    .strict()
     .refine(
       (data) => {
         if (data.listingType !== 'free' && data.listingType !== 'wanted') {
@@ -227,7 +228,7 @@ export const updateListingSchema = z.object({
         }),
       ])
       .optional(),
-  }),
+  }).strict(),
 });
 
 // ── PATCH /api/listings/:id/status ────────────────────────────────────────────
@@ -244,5 +245,5 @@ export const updateListingStatusSchema = z.object({
             : { message: ctx.defaultError },
       })
       .refine((val) => val !== undefined, { message: 'Status is required' }),
-  }),
+  }).strict(),
 });

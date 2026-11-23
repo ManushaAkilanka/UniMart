@@ -19,7 +19,12 @@ const CONDITION_STYLES = {
 };
 
 export const ListingCard = ({ listing, skeleton = false }) => {
-  if (skeleton) {
+  const { isAuthenticated, user } = useAuth();
+  const { isFavorited, toggle } = useFavorites();
+  const navigate = useNavigate();
+  const [toggling, setToggling] = useState(false);
+
+  if (skeleton || !listing) {
     return (
       <div className="flex flex-col bg-surface-container-lowest rounded-xl shadow-sm overflow-hidden animate-pulse">
         <div className="w-full aspect-[4/3] bg-surface-container-high" />
@@ -54,11 +59,6 @@ export const ListingCard = ({ listing, skeleton = false }) => {
     viewCount,
   } = listing;
 
-  const { isAuthenticated, user } = useAuth();
-  const { isFavorited, toggle } = useFavorites();
-  const navigate = useNavigate();
-
-  const [toggling, setToggling] = useState(false);
   const saved = isFavorited(_id);
 
   const isWanted = listingType === 'wanted';

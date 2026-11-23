@@ -1,8 +1,10 @@
 import js from '@eslint/js';
 import globals from 'globals';
+import pluginSecurity from 'eslint-plugin-security';
 
 export default [
   js.configs.recommended,
+  pluginSecurity.configs.recommended,
   {
     languageOptions: {
       ecmaVersion: 'latest',

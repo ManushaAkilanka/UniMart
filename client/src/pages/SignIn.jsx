@@ -220,12 +220,8 @@ export const SignIn = () => {
                   Password
                 </label>
                 <Link
-                  to="#"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    alert('Password reset link will be sent to your verified student email.');
-                  }}
-                  className="font-label-md text-label-md text-secondary hover:underline"
+                  to="/forgot-password"
+                  className="font-label-md text-label-md text-secondary hover:underline cursor-pointer"
                 >
                   Forgot password?
                 </Link>

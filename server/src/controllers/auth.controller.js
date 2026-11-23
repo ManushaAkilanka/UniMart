@@ -5,9 +5,9 @@ import { ENV } from '../config/env.js';
 // ── Cookie config ─────────────────────────────────────────────────────────────
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: ENV.NODE_ENV === 'production',
-  sameSite: ENV.NODE_ENV === 'production' ? 'strict' : 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days in ms
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 15 * 60 * 1000, // 15 minutes in ms
 };
 
 // ── POST /api/auth/register ───────────────────────────────────────────────────
@@ -57,8 +57,8 @@ export const login = async (req, res, next) => {
 export const logout = (_req, res) => {
   res.clearCookie('token', {
     httpOnly: true,
-    secure: ENV.NODE_ENV === 'production',
-    sameSite: ENV.NODE_ENV === 'production' ? 'strict' : 'lax',
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
   });
 
   res.status(200).json({
@@ -220,6 +220,36 @@ export const googleAuthJson = async (req, res, next) => {
       success: true,
       message: 'Google sign-in successful.',
       data: { user },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── POST /api/auth/forgot-password ────────────────────────────────────────────
+export const forgotPassword = async (req, res, next) => {
+  try {
+    const { email } = req.body;
+    const result = await authService.requestPasswordReset(email);
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+// ── POST /api/auth/reset-password ─────────────────────────────────────────────
+export const resetPassword = async (req, res, next) => {
+  try {
+    const { token, newPassword } = req.body;
+    const result = await authService.resetPassword({ token, newPassword });
+
+    res.status(200).json({
+      success: true,
+      message: result.message,
     });
   } catch (err) {
     next(err);

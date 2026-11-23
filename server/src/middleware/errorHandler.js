@@ -8,6 +8,13 @@ export const notFoundHandler = (req, res, next) => {
 };
 
 export const errorHandler = (err, req, res, next) => {
+  if (err.isCors || (err.message && err.message.includes('CORS policy'))) {
+    return res.status(403).json({
+      success: false,
+      message: 'Origin not allowed by CORS policy',
+    });
+  }
+
   const statusCode = err.statusCode || 500;
   console.error(`[Server Error] ${req.method} ${req.originalUrl} -`, err.message);
 

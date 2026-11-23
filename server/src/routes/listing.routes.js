@@ -4,6 +4,8 @@ import { requireAuth, optionalAuth, requireApproved } from '../middleware/auth.m
 import { validateRequest } from '../middleware/validate.js';
 import { handleListingImageUpload } from '../middleware/upload.middleware.js';
 import { uploadRateLimiter } from '../middleware/rateLimiter.js';
+import { requireOwner } from '../middleware/ownership.js';
+import { Listing } from '../models/index.js';
 import {
   getListingsQuerySchema,
   createListingSchema,
@@ -49,6 +51,7 @@ router.get(
 router.patch(
   '/:id/status',
   requireAuth,
+  requireOwner(Listing, 'sellerId', 'You do not have permission to update this listing.'),
   validateRequest(updateListingStatusSchema),
   listingController.updateListingStatus
 );
@@ -57,12 +60,18 @@ router.patch(
 router.post('/:id/claim', requireAuth, requireApproved, listingController.claimListing);
 
 // POST /api/listings/:id/release-claim (Owner releases an existing claim)
-router.post('/:id/release-claim', requireAuth, listingController.releaseClaim);
+router.post(
+  '/:id/release-claim',
+  requireAuth,
+  requireOwner(Listing, 'sellerId', 'Only the owner can release a claim.'),
+  listingController.releaseClaim
+);
 
 // PATCH /api/listings/:id (Update listing details)
 router.patch(
   '/:id',
   requireAuth,
+  requireOwner(Listing, 'sellerId', 'You do not have permission to edit this listing.'),
   uploadRateLimiter,
   handleListingImageUpload,
   validateRequest(updateListingSchema),
@@ -73,6 +82,7 @@ router.patch(
 router.delete(
   '/:id',
   requireAuth,
+  requireOwner(Listing, 'sellerId', 'You do not have permission to delete this listing.'),
   validateRequest(getListingByIdSchema),
   listingController.deleteListing
 );

@@ -39,22 +39,25 @@ function getExtensionFromBuffer(buffer) {
  */
 export async function uploadToCloudinary(buffer, folder = 'unimart/listings') {
   if (!isConfigured) {
+    if (ENV.NODE_ENV === 'production') {
+      throw new Error('Local disk avatar fallback is disabled in production. Cloudinary credentials are required.');
+    }
     // Graceful and working fallback for local development & testing environments
     const ext = getExtensionFromBuffer(buffer);
-    const safePrefix = folder.replace(/[^a-zA-Z0-9_-]/g, '_');
-    const filename = `${safePrefix}_${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
+    const targetDir = path.join(UPLOADS_DIR, folder);
+    const baseFilename = `${Date.now()}_${Math.random().toString(36).substring(2, 9)}.${ext}`;
 
-    if (!fs.existsSync(UPLOADS_DIR)) {
-      fs.mkdirSync(UPLOADS_DIR, { recursive: true });
+    if (!fs.existsSync(targetDir)) {
+      fs.mkdirSync(targetDir, { recursive: true });
     }
 
-    const filePath = path.join(UPLOADS_DIR, filename);
+    const filePath = path.join(targetDir, baseFilename);
     await fs.promises.writeFile(filePath, buffer);
 
     const baseUrl = process.env.API_URL || `http://localhost:${ENV.PORT || 5000}`;
     return {
-      url: `${baseUrl}/uploads/${filename}`,
-      publicId: `local/${filename}`,
+      url: `${baseUrl}/uploads/${folder}/${baseFilename}`,
+      publicId: `local/${folder}/${baseFilename}`,
     };
   }
 

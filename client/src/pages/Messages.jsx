@@ -14,6 +14,7 @@ import {
 } from '../utils/api';
 import { cn } from '../utils/cn';
 import { Modal } from '../components/ui/Modal';
+import DOMPurify from 'dompurify';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -223,7 +224,7 @@ const MeetupProposalCard = ({ message, isOwn, currentUserId, onRespond }) => {
       {/* Body text */}
       <p
         className="font-body-sm text-body-sm text-on-surface-variant mb-space-sm"
-        dangerouslySetInnerHTML={{ __html: escapeHtml(message.body) }}
+        dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(escapeHtml(message.body)) }}
       />
 
       {canRespond && (
@@ -1234,7 +1235,7 @@ export const Messages = () => {
                           <div key={msg._id} className="flex items-center justify-center my-space-xs">
                             <span className="px-space-sm py-0.5 rounded-full bg-surface-container font-code-sm text-code-sm text-on-surface-variant">
                               {/* Escape HTML on render */}
-                              <span dangerouslySetInnerHTML={{ __html: escapeHtml(msg.body) }} />
+                              <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(escapeHtml(msg.body)) }} />
                             </span>
                           </div>
                         );
@@ -1265,7 +1266,7 @@ export const Messages = () => {
                               )}
                             >
                               {/* Escaped on render */}
-                              <span dangerouslySetInnerHTML={{ __html: escapeHtml(msg.body) }} />
+                              <span dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(escapeHtml(msg.body)) }} />
                             </div>
                             <div className="flex items-center gap-space-2xs text-on-surface-variant font-label-sm text-label-sm">
                               <span>{formatMsgTime(msg.createdAt)}</span>

@@ -40,6 +40,9 @@ export const getListings = async (req, res, next) => {
       limit = 12,
     } = req.query;
 
+    const safeLimit = Math.min(Math.max(parseInt(limit, 10) || 12, 1), 50);
+    const safePage = Math.max(parseInt(page, 10) || 1, 1);
+
     // Rule: only active listings are public
     const filter = { status: 'active' };
 
@@ -112,13 +115,13 @@ export const getListings = async (req, res, next) => {
     }
 
     // 8. Pagination & Execution
-    const skip = (page - 1) * limit;
+    const skip = (safePage - 1) * safeLimit;
 
     const [listings, total, categoryCounts, conditionCounts, allCategories] = await Promise.all([
       Listing.find(filter)
         .sort(sortOption)
         .skip(skip)
-        .limit(limit)
+        .limit(safeLimit)
         .populate('sellerId', 'fullName email faculty campus isVerified avatarUrl createdAt')
         .populate('categoryId', 'name slug icon')
         .lean(),
@@ -179,9 +182,9 @@ export const getListings = async (req, res, next) => {
         listings,
         pagination: {
           total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit) || 1,
+          page: safePage,
+          limit: safeLimit,
+          totalPages: Math.ceil(total / safeLimit) || 1,
         },
         facets: {
           categories: categoryFacets,
@@ -635,15 +638,15 @@ export const releaseClaim = async (req, res, next) => {
  */
 export const getMyListings = async (req, res, next) => {
   try {
-    const page = parseInt(req.query.page, 10) || 1;
-    const limit = Math.min(parseInt(req.query.limit, 10) || 20, 50);
-    const skip = (page - 1) * limit;
+    const safePage = Math.max(parseInt(req.query.page, 10) || 1, 1);
+    const safeLimit = Math.min(Math.max(parseInt(req.query.limit, 10) || 20, 1), 50);
+    const skip = (safePage - 1) * safeLimit;
 
     const [listings, total] = await Promise.all([
       Listing.find({ sellerId: req.user._id })
         .sort({ createdAt: -1 })
         .skip(skip)
-        .limit(limit)
+        .limit(safeLimit)
         .populate('categoryId', 'name slug icon')
         .lean(),
       Listing.countDocuments({ sellerId: req.user._id }),
@@ -655,9 +658,9 @@ export const getMyListings = async (req, res, next) => {
         listings,
         pagination: {
           total,
-          page,
-          limit,
-          totalPages: Math.ceil(total / limit) || 1,
+          page: safePage,
+          limit: safeLimit,
+          totalPages: Math.ceil(total / safeLimit) || 1,
         },
       },
     });

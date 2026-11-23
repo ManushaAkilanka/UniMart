@@ -7,7 +7,15 @@
  * GET    /api/users/:id/listings    – Public active listings for a seller
  */
 import mongoose from 'mongoose';
+import { z } from 'zod';
 import { User, Listing } from '../models/index.js';
+
+const updateProfileSchema = z.object({
+  fullName: z.string().trim().min(2, 'Full name must be between 2 and 100 characters.').max(100, 'Full name must be between 2 and 100 characters.').optional(),
+  faculty: z.string().trim().max(100).optional(),
+  campus: z.string().trim().max(100).optional(),
+  avatarUrl: z.union([z.string().url('Avatar URL must be a valid URL.'), z.literal(''), z.null()]).optional(),
+}).strict();
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
 
@@ -43,38 +51,24 @@ export const getMyProfile = async (req, res, next) => {
  */
 export const updateMyProfile = async (req, res, next) => {
   try {
-    const ALLOWED_FIELDS = ['fullName', 'faculty', 'campus', 'avatarUrl'];
-    const updates = {};
+    const parseResult = updateProfileSchema.safeParse(req.body);
+    if (!parseResult.success) {
+      const firstError = parseResult.error.errors[0]?.message;
+      return res.status(400).json({
+        success: false,
+        message: firstError && !firstError.includes('Unrecognized key')
+          ? firstError
+          : 'Invalid profile data or disallowed fields.',
+      });
+    }
 
-    ALLOWED_FIELDS.forEach((field) => {
-      if (req.body[field] !== undefined) {
-        updates[field] = typeof req.body[field] === 'string'
-          ? req.body[field].trim()
-          : req.body[field];
+    const updates = {};
+    const data = parseResult.data;
+    ['fullName', 'faculty', 'campus', 'avatarUrl'].forEach((field) => {
+      if (data[field] !== undefined) {
+        updates[field] = data[field];
       }
     });
-
-    // Validate fullName length if provided
-    if (updates.fullName !== undefined) {
-      if (updates.fullName.length < 2 || updates.fullName.length > 100) {
-        return res.status(400).json({
-          success: false,
-          message: 'Full name must be between 2 and 100 characters.',
-        });
-      }
-    }
-
-    // Validate avatarUrl if provided (must be a valid URL or null)
-    if (updates.avatarUrl !== undefined && updates.avatarUrl !== null && updates.avatarUrl !== '') {
-      try {
-        new URL(updates.avatarUrl);
-      } catch {
-        return res.status(400).json({
-          success: false,
-          message: 'Avatar URL must be a valid URL.',
-        });
-      }
-    }
 
     if (Object.keys(updates).length === 0) {
       return res.status(400).json({ success: false, message: 'No valid fields to update.' });

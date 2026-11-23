@@ -372,3 +372,21 @@ export function markAllNotificationsRead() {
   return request('/notifications/read-all', { method: 'PATCH' });
 }
 
+// ── Password Reset ──────────────────────────────────────────────────────────
+
+/** POST /api/auth/forgot-password */
+export function forgotPassword(email) {
+  return request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  });
+}
+
+/** POST /api/auth/reset-password */
+export function resetPassword(token, newPassword) {
+  return request('/auth/reset-password', {
+    method: 'POST',
+    body: JSON.stringify({ token, newPassword }),
+  });
+}
+

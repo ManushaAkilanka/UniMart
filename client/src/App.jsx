@@ -8,6 +8,8 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
 import { VerifyEmail } from './pages/VerifyEmail';
+import { ForgotPassword } from './pages/ForgotPassword';
+import { ResetPassword } from './pages/ResetPassword';
 import { Dashboard } from './pages/Dashboard';
 import { DesignCheck } from './pages/DesignCheck';
 import { Home } from './pages/Home';
@@ -64,6 +66,8 @@ export default function App() {
           <Route path="/register" element={<SignUp />} />
           <Route path="/signup" element={<SignUp />} />
           <Route path="/verify-email" element={<VerifyEmail />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
 
           {/* Full-bleed marketplace pages */}
           <Route

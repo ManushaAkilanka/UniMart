@@ -31,7 +31,7 @@ export const requireAuth = async (req, res, next) => {
     // 3. Verify token
     let payload;
     try {
-      payload = jwt.verify(token, ENV.JWT_SECRET);
+      payload = jwt.verify(token, ENV.JWT_SECRET, { algorithms: ['HS256'] });
     } catch (jwtErr) {
       const message =
         jwtErr.name === 'TokenExpiredError'
@@ -80,7 +80,7 @@ export const optionalAuth = async (req, res, next) => {
     }
 
     try {
-      const payload = jwt.verify(token, ENV.JWT_SECRET);
+      const payload = jwt.verify(token, ENV.JWT_SECRET, { algorithms: ['HS256'] });
       const user = await User.findById(payload.sub);
       if (user && !user.isSuspended) {
         req.user = user;

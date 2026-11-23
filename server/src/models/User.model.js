@@ -91,6 +91,15 @@ const userSchema = new Schema(
       type: Date,
       select: false,
     },
+    // Password reset fields
+    passwordResetToken: {
+      type: String,
+      select: false,
+    },
+    passwordResetExpiry: {
+      type: Date,
+      select: false,
+    },
   },
   {
     timestamps: true,
@@ -99,6 +108,8 @@ const userSchema = new Schema(
         delete ret.passwordHash;
         delete ret.emailVerificationCode;
         delete ret.emailVerificationExpiry;
+        delete ret.passwordResetToken;
+        delete ret.passwordResetExpiry;
         return ret;
       },
     },
@@ -107,6 +118,7 @@ const userSchema = new Schema(
 
 // Indexes
 userSchema.index({ email: 1 }, { unique: true });
+userSchema.index({ passwordResetToken: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ campus: 1 });
 userSchema.index({ isVerified: 1 });

@@ -110,8 +110,7 @@ describe('UniMart Admin & Moderation API', () => {
 
     for (const route of ADMIN_ROUTES) {
       it(`student gets 403 on ${route.method.toUpperCase()} ${route.path}`, async () => {
-        const res = await request(app)
-          [route.method](route.path)
+        const res = await request(app)[route.method](route.path)
           .set(authHeader(studentToken));
         expect(res.status).toBe(403);
         expect(res.body.success).toBe(false);

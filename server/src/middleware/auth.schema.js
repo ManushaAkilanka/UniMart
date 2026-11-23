@@ -57,3 +57,32 @@ export const verifyEmailSchema = z.object({
       .regex(/^\d{6}$/, 'Verification code must contain only digits'),
   }),
 });
+
+// ── Forgot Password ───────────────────────────────────────────────────────────
+export const forgotPasswordSchema = z.object({
+  body: z.object({
+    email: z
+      .string({ required_error: 'Email is required' })
+      .email('Please provide a valid email address')
+      .toLowerCase()
+      .trim(),
+  }),
+});
+
+// ── Reset Password ────────────────────────────────────────────────────────────
+export const resetPasswordSchema = z.object({
+  body: z.object({
+    token: z
+      .string({ required_error: 'Reset token is required' })
+      .min(1, 'Reset token is required'),
+
+    newPassword: z
+      .string({ required_error: 'Password is required' })
+      .min(8, 'Password must be at least 8 characters')
+      .max(128, 'Password must not exceed 128 characters')
+      .regex(
+        /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
+        'Password must contain at least one uppercase letter, one lowercase letter, and one number'
+      ),
+  }),
+});

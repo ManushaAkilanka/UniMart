@@ -21,7 +21,7 @@ This document details the multi-layered defense-in-depth security model implemen
 - **Client Storage**: Session tokens are never stored in client-side `localStorage` or `sessionStorage`.
 
 ### 1.2 Institutional Email Verification (`.ac.lk`)
-- **Domain Verification**: Primary student registration enforces verified Sri Lankan university domains (`*.ac.lk`, such as `cmb.ac.lk`, `mrt.ac.lk`, `pdn.ac.lk`, `sjp.ac.lk`, `kln.ac.lk`, `ruh.ac.lk`) via `UNIVERSITY_EMAIL_REGEX = /^[^\s@]+@([a-zA-Z0-9-]+\.)*ac\.lk$/i`.
+- **Domain Verification**: Primary student registration enforces verified Sri Lankan university domains (`*.ac.lk`, such as `cmb.ac.lk`, `mrt.ac.lk`, `pdn.ac.lk`, `sjp.ac.lk`, `kln.ac.lk`, `ruh.ac.lk`). Evaluated via safe domain-suffix verification to completely eliminate catastrophic Regular Expression Denial of Service (ReDoS).
 - **OTP Verification**: Email verification codes are cryptographically generated 6-digit numbers (`crypto.randomBytes(4)`), hashed with bcrypt (10 rounds in production/dev), and time-bounded by `ENV.VERIFICATION_CODE_EXPIRY_MINUTES` (defaults to 15 minutes) before accounts become verified.
 
 ### 1.3 Google OAuth 2.0 & Pending Approval Workflow
@@ -37,7 +37,14 @@ This document details the multi-layered defense-in-depth security model implemen
 - Password complexity enforced at the Zod schema layer (`auth.schema.js`):
   - Minimum 8 characters, maximum 128 characters.
   - Regex requirement: `/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/` (at least one uppercase letter, one lowercase letter, and one number).
-- Sensitive credentials (`passwordHash`, `emailVerificationCode`) are configured with `select: false` on the Mongoose schema and stripped in JSON transforms.
+- Sensitive credentials (`passwordHash`, `emailVerificationCode`, `passwordResetToken`, `passwordResetExpiry`) are configured with `select: false` on the Mongoose schema and stripped in JSON transforms.
+
+### 1.5 Forgot Password & Password Reset Security
+- **Anti-Enumeration Protection**: `POST /api/auth/forgot-password` returns the exact same generic success message whether the email exists or not. Timing equalisation via dummy bcrypt hashing is executed for non-existent accounts so response timing cannot be used to enumerate campus emails.
+- **Cryptographic Reset Tokens**: High-entropy 32-byte tokens (`crypto.randomBytes(32).toString('hex')`). Only the SHA-256 hash of the token is persisted in MongoDB (`passwordResetToken`) with a 30-minute expiry (`passwordResetExpiry`).
+- **Single-Use Enforcement**: Tokens are invalidated immediately upon first consumption. Requesting a new token invalidates any previously issued token for that account.
+- **OAuth & Suspended User Protection**: Accounts without a `passwordHash` (Google OAuth accounts) receive the generic response and no token is issued. Suspended accounts are barred from completing a password reset.
+- **Strict Endpoint Rate Limiting**: `POST /api/auth/forgot-password` is limited to 5 requests / 15 minutes; `POST /api/auth/reset-password` is limited to 10 attempts / 15 minutes.
 
 ---
 
@@ -97,7 +104,7 @@ Campus listings and profile avatars accept image uploads through a strictly cont
 ```
 
 - **Extension Spoofing Defense**: Renaming malicious executables (e.g. `malware.exe` to `photo.jpg`) is immediately caught by magic byte signature inspection (`checkImageSignature`) and rejected with `400 INVALID_IMAGE_SIGNATURE`.
-- **Zero Local Disk Footprint**: Files are stored in memory buffers during validation and streamed directly to Cloudinary via TLS, eliminating local arbitrary code execution risks.
+- **Zero Local Disk Footprint in Production**: Files are stored in memory buffers during validation and streamed directly to Cloudinary via TLS. In production (`ENV.NODE_ENV === 'production'`), the local-disk fallback is strictly disabled and throws an error; the server fails loudly at startup (`process.exit(1)`) if Cloudinary credentials are missing. Local disk storage is restricted purely to isolated local dev and test environments.
 
 ---
 
@@ -115,16 +122,19 @@ Campus listings and profile avatars accept image uploads through a strictly cont
   - `ENV.CLIENT_URL` (defaults to `http://localhost:5173`)
   - `http://localhost:5173`
   - `http://127.0.0.1:5173`
-- `credentials: true` restricted strictly to whitelisted origins; unauthorized origins are rejected with a CORS policy error.
+- `credentials: true` restricted strictly to whitelisted origins.
+- **Clean 403 Forbidden Response**: Unauthorized origins are intercepted and return a clean HTTP `403 Forbidden` with `{ "success": false, "message": "Origin not allowed by CORS policy" }`, suppressing internal stack traces and server details.
 
 ### 5.3 Route-Specific Abuse & Rate Limiting
 Endpoint-specific rate limiters (`middleware/rateLimiter.js`) enforce protective thresholds:
 - **Login (`POST /api/auth/login`)**: 10 attempts per 15 minutes per IP (`ENV.LOGIN_RATE_LIMIT_MAX` / `ENV.LOGIN_RATE_LIMIT_WINDOW_MINUTES`).
 - **Registration (`POST /api/auth/register`)**: 15 accounts per 15 minutes per IP.
 - **Verification (`POST /api/auth/verify-email`)**: 20 verification attempts per 15 minutes per IP.
+- **Forgot Password (`POST /api/auth/forgot-password`)**: 5 requests per 15 minutes per IP.
+- **Reset Password (`POST /api/auth/reset-password`)**: 10 attempts per 15 minutes per IP.
 - **Messaging (`POST /api/conversations/:id/messages`)**: 30 messages per 1 minute.
 - **Media Uploads (`POST /api/listings`, `PATCH /api/listings/:id`)**: 30 upload requests per 15 minutes.
-- Rate limiting is automatically skipped in `test` environment to ensure deterministic test execution.
+- Rate limiting is bypassed during automated test execution unless the explicit opt-in header `x-test-rate-limit: true` is present, allowing deterministic security testing without slowing standard test suites.
 
 ---
 

@@ -2,6 +2,37 @@ import rateLimit from 'express-rate-limit';
 import { ENV } from '../config/env.js';
 
 const isTest = () => ENV.NODE_ENV === 'test';
+const shouldSkip = (req) => isTest() && req.headers['x-test-rate-limit'] !== 'true';
+
+/**
+ * General Auth Limiter for sensitive auth entry points
+ */
+export const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many authentication attempts. Please try again after 15 minutes.',
+  },
+  skip: shouldSkip,
+});
+
+/**
+ * General API Limiter (100 req/min)
+ */
+export const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many requests. Please try again after a minute.',
+  },
+  skip: shouldSkip,
+});
 
 /**
  * Auth Rate Limiter for Login
@@ -15,7 +46,7 @@ export const loginRateLimiter = rateLimit({
     success: false,
     message: `Too many login attempts. Please try again after ${ENV.LOGIN_RATE_LIMIT_WINDOW_MINUTES || 15} minutes.`,
   },
-  skip: isTest,
+  skip: shouldSkip,
 });
 
 /**
@@ -30,7 +61,7 @@ export const registerRateLimiter = rateLimit({
     success: false,
     message: 'Too many accounts created from this IP. Please try again after 15 minutes.',
   },
-  skip: isTest,
+  skip: shouldSkip,
 });
 
 /**
@@ -45,7 +76,37 @@ export const verifyRateLimiter = rateLimit({
     success: false,
     message: 'Too many verification attempts. Please try again after 15 minutes.',
   },
-  skip: isTest,
+  skip: shouldSkip,
+});
+
+/**
+ * Auth Rate Limiter for Forgot Password
+ */
+export const forgotPasswordRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many password reset requests. Please try again after 15 minutes.',
+  },
+  skip: shouldSkip,
+});
+
+/**
+ * Auth Rate Limiter for Reset Password
+ */
+export const resetPasswordRateLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    message: 'Too many password reset attempts. Please try again after 15 minutes.',
+  },
+  skip: shouldSkip,
 });
 
 /**

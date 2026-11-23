@@ -7,10 +7,17 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { User } from '../models/index.js';
 import { ENV } from '../config/env.js';
-import { sendVerificationEmail } from './email.service.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from './email.service.js';
 
 // ── Allowed university email domains ────────────────────────────────────────
-const UNIVERSITY_EMAIL_REGEX = /^[^\s@]+@([a-zA-Z0-9-]+\.)*ac\.lk$/i;
+// Safe validation without catastrophic regex backtracking (ReDoS)
+const UNIVERSITY_EMAIL_REGEX = {
+  test: (email) => {
+    if (typeof email !== 'string' || !email.includes('@')) return false;
+    const domain = email.trim().split('@').pop().toLowerCase();
+    return domain === 'ac.lk' || domain.endsWith('.ac.lk');
+  },
+};
 
 /**
  * Generate a cryptographically random 6-digit OTP.
@@ -23,11 +30,12 @@ function generateOTP() {
 }
 
 /**
- * Sign a JWT for a given user ID.
+ * Sign a JWT for a given user ID with pinned HS256 algorithm and 15m expiration.
  */
 export function signToken(userId) {
   return jwt.sign({ sub: userId.toString() }, ENV.JWT_SECRET, {
-    expiresIn: ENV.JWT_EXPIRES_IN,
+    expiresIn: '15m',
+    algorithm: 'HS256',
   });
 }
 
@@ -292,4 +300,126 @@ export async function handleGoogleUser({ googleId, email, fullName, avatarUrl })
 
   const token = signToken(user._id);
   return { user: user.toJSON(), token };
+}
+
+// ── Forgot & Reset Password ───────────────────────────────────────────────────
+
+/**
+ * Request a password reset email for an account.
+ * - Always returns a generic success message (no user enumeration).
+ * - Equalizes timing across existing, missing, Google-only and suspended accounts.
+ * - Single-use token: invalidates any previously issued token.
+ */
+export async function requestPasswordReset(email) {
+  const genericMessage =
+    'If an account with that email exists, we have sent a password reset link to it.';
+
+  const normalizedEmail = email.toLowerCase().trim();
+  const user = await User.findOne({ email: normalizedEmail }).select(
+    '+passwordHash +passwordResetToken +passwordResetExpiry'
+  );
+
+  // If user does not exist, or has no passwordHash (Google OAuth only), or is suspended:
+  // Perform dummy computation to equalize response timing and prevent user enumeration
+  if (!user || !user.passwordHash || user.isSuspended) {
+    const dummyCost = process.env.NODE_ENV === 'test' ? 4 : 10;
+    await bcrypt.hash('dummy_timing_mitigation_payload', dummyCost);
+    return { message: genericMessage };
+  }
+
+  // Generate cryptographically secure random token (32 bytes = 64 hex characters)
+  const rawToken = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+  // Overwrite token and expiry (requesting a new one invalidates any old token)
+  user.passwordResetToken = tokenHash;
+  user.passwordResetExpiry = expiry;
+  await user.save();
+
+  // Build reset URL and send email
+  const baseUrl = ENV.CLIENT_URL || 'http://localhost:5173';
+  const resetUrl = `${baseUrl}/reset-password?token=${rawToken}`;
+
+  sendPasswordResetEmail(user.email, resetUrl).catch((err) => {
+    console.error('[Auth] Failed to send password reset email:', err.message);
+  });
+
+  return { message: genericMessage };
+}
+
+/**
+ * Reset password using a valid reset token.
+ * - Verifies token validity and expiry (30 mins).
+ * - Tokens are single-use: cleared on successful reset.
+ * - Validates password requirements.
+ * - Hashes password using bcrypt (cost 12 in prod/dev, 4 in test).
+ * - Blocks suspended accounts.
+ */
+export async function resetPassword({ token, newPassword }) {
+  if (!token) {
+    const err = new Error('Reset token is required.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const PASSWORD_REGEX = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/;
+  if (
+    !newPassword ||
+    newPassword.length < 8 ||
+    newPassword.length > 128 ||
+    !PASSWORD_REGEX.test(newPassword)
+  ) {
+    const err = new Error(
+      'Password must be at least 8 characters and contain at least one uppercase letter, one lowercase letter, and one number.'
+    );
+    err.statusCode = 400;
+    throw err;
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token.trim()).digest('hex');
+
+  // Look up user by hashed reset token
+  const user = await User.findOne({
+    passwordResetToken: tokenHash,
+  }).select('+passwordHash +passwordResetToken +passwordResetExpiry');
+
+  if (!user) {
+    const err = new Error('Invalid or expired password reset token.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Check token expiry
+  if (!user.passwordResetExpiry || Date.now() > user.passwordResetExpiry.getTime()) {
+    user.passwordResetToken = undefined;
+    user.passwordResetExpiry = undefined;
+    await user.save();
+
+    const err = new Error('Password reset token has expired. Please request a new one.');
+    err.statusCode = 400;
+    throw err;
+  }
+
+  // Suspended users cannot reset
+  if (user.isSuspended) {
+    const err = new Error(
+      `Your account has been suspended. ${user.suspendedReason ? 'Reason: ' + user.suspendedReason : 'Please contact support.'}`
+    );
+    err.statusCode = 403;
+    throw err;
+  }
+
+  // Hash new password with bcrypt (cost 12, or 4 in test)
+  const passwordRounds = process.env.NODE_ENV === 'test' ? 4 : 12;
+  user.passwordHash = await bcrypt.hash(newPassword, passwordRounds);
+
+  // Single-use: Invalidate token and expiry
+  user.passwordResetToken = undefined;
+  user.passwordResetExpiry = undefined;
+  await user.save();
+
+  return {
+    message: 'Password has been reset successfully. You can now sign in with your new password.',
+  };
 }

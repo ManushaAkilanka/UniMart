@@ -9,9 +9,9 @@ UniMart enforces a disciplined testing strategy designed to validate correctness
 | Metric | Status | Details |
 | :--- | :--- | :--- |
 | **Server Integration Suites** | **8 / 8 Passing (100%)** | `listing.test.js`, `favorites.test.js`, `auth.test.js`, `admin.test.js`, `conversation.test.js`, `socket.test.js`, `notification.test.js`, `security.test.js` |
-| **Total Server Test Cases** | **181 Passed / 0 Failed** | Zero flaky or skipped tests in execution |
+| **Total Server Test Cases** | **192 Passed / 0 Failed** | Zero flaky or skipped tests in execution |
 | **Client Production Build** | **Clean (Exit Code 0)** | Vite + React + Tailwind + PostCSS bundle verification |
-| **End-to-End Suite** | **Active (Playwright)** | 3 comprehensive browser workflows in `e2e/marketplace.spec.js` |
+| **End-to-End Suite** | **Active (Playwright)** | Comprehensive browser workflows in `e2e/marketplace.spec.js` and `e2e/navbar.spec.js` |
 | **Database Isolation** | **100% Ephemeral** | `mongodb-memory-server` per-suite spun up and torn down in memory |
 
 ---
@@ -81,8 +81,8 @@ Validates user interaction, saved items, and user profile management:
   - Validates image magic bytes; rejects invalid file buffers.
   - Updates `avatarUrl` in user profile upon successful Cloudinary upload.
 
-### 3.3 `src/tests/auth.test.js` (33 Tests)
-Validates identity verification, session cookies, and institutional policies:
+### 3.3 `src/tests/auth.test.js` (44 Tests)
+Validates identity verification, session cookies, password reset, and institutional policies:
 - **Institutional Email Validation**: Restricts direct registration strictly to verified Sri Lankan university domains (`@*.ac.lk`).
 - **OTP Verification Flow**: Issues time-limited 6-digit OTP codes; tests valid code acceptance, expired code rejection, and wrong code handling.
 - **Session Cookie Security**: Emits `httpOnly` secure cookies with `SameSite=Lax` / `Strict`.
@@ -92,6 +92,14 @@ Validates identity verification, session cookies, and institutional policies:
   - Exchanges authorization code and fetches Google user profile.
   - Automatically tags non-university emails as `accountStatus: 'pending_approval'`.
   - Links Google accounts to existing accounts with matching email addresses.
+- **Forgot Password & Reset Flow (11 Tests)**:
+  - Non-enumerating generic success for registered accounts, unregistered emails, Google-only accounts, and suspended users.
+  - Dummy bcrypt execution to equalize response timing between existing and non-existing accounts.
+  - Requesting new reset token invalidates existing active token.
+  - Expired token rejected.
+  - Single-use token consumption (reused token rejected).
+  - Rate limiting on `/forgot-password` (5 req / 15m) and `/reset-password` (10 req / 15m).
+  - Password reset updates `passwordHash` with bcrypt (12 rounds) and enables login with new credentials while invalidating old password.
 
 ### 3.4 `src/tests/admin.test.js` (31 Tests)
 Tests privileged institutional moderation and governance:
@@ -120,34 +128,39 @@ Tests event-driven notifications:
 - **Deduplication**: Suppresses redundant unread notifications when a user is already active in the chat room.
 - **State Updates**: Validates `markOneRead` and `markAllRead` operations.
 
-### 3.8 `src/tests/security.test.js` (4 Tests)
-Validates core HTTP infrastructure defense:
-- **NoSQL Sanitize (Unit)**: Strips keys starting with `$` or containing `.` from nested payload objects.
-- **NoSQL Sanitize (Express Middleware)**: Sanitizes `req.body` and `req.query` automatically.
+### 3.8 `src/tests/security.test.js` (12 Tests)
+Validates core HTTP infrastructure and dynamic attack resilience:
+- **NoSQL Sanitize (Unit & Middleware)**: Recursively strips keys starting with `$` or containing `.` from nested payload objects, `req.body`, and `req.query`.
 - **Helmet Security Headers**: Validates `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and `Cross-Origin-Resource-Policy: cross-origin`.
-- **CORS Configuration**: Verifies strict whitelist against unauthorized cross-origin requests.
+- **CORS 403 & Information Leakage**: Verifies unauthorized origins return a clean HTTP `403 Forbidden` with a generic message and zero stack trace disclosure.
+- **Production Error Guard**: Confirms stack traces and internal filesystem paths are never leaked when `NODE_ENV=production`.
+- **JWT Attack Resilience**: Rejects expired tokens (401), tampered signatures (401), and unsigned tokens with `alg: "none"` (401).
+- **File Upload Attack Defense**: Validates buffer magic byte signatures; rejects disguised executable scripts or text files claiming to be images.
+- **OAuth Open Redirect Defense**: Verifies callbacks redirect exclusively to whitelisted `CLIENT_URL`.
+- **Production Cookie Flags**: Confirms `secure: true`, `httpOnly: true`, and `sameSite: strict` in production mode.
 
 ---
 
-## 4. End-to-End Test Suite (`e2e/marketplace.spec.js`)
+## 4. End-to-End Test Suites
 
-Playwright drives 3 automated end-to-end tests across real browser contexts:
-1. **Complete Marketplace User Flow**:
+Playwright automates real browser sessions:
+1. **Marketplace User Flow (`e2e/marketplace.spec.js`)**:
    - Student registration with university credentials (`@sci.cmb.ac.lk`).
    - OTP email verification code submission (steps 1–6).
    - Wanted listing creation at `/sell`.
    - Marketplace discovery at `/browse`.
    - Buyer-to-seller real-time chat initiation at `/messages`.
    - Seller marking listing as sold / fulfilled.
-2. **Moderation Console Flow**:
-   - Admin/moderator authentication.
-   - Moderation console navigation at `/moderation`.
-   - Inspection of active listings and administrative take-down / hide action.
-3. **Category Select UX Regression Test**:
-   - Log in with existing verified student.
-   - Open `/sell` (Listing Form).
-   - Confirms default disabled placeholder is present on load with value `""`.
-   - Submits with title/description but omitted category, confirming visible validation message (`Please select a primary category`) and form submission blocking.
+   - Admin/moderator moderation console checks.
+   - Category Select UX regression test.
+2. **Navbar Functionality & Dark Mode Audit (`e2e/navbar.spec.js`)**:
+   - Brand logo link navigates to home `/`.
+   - Navigation links (Browse, Categories, Wanted, Free Items).
+   - Global search input + Enter submits and filters results.
+   - Post Listing button redirects unauthenticated users to `/login`.
+   - Sign In and Register links navigate correctly.
+   - Theme toggle toggles dark mode class on DOM root and persists in `localStorage` across page reload.
+   - Mobile responsive drawer opens, responds to keyboard navigation (Escape to close), and links correctly.
 
 ---
 

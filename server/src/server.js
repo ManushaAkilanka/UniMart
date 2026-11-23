@@ -5,6 +5,14 @@ import { connectDB } from './config/db.js';
 import { initSocket } from './services/socket.service.js';
 
 const startServer = async () => {
+  // Fail loudly at startup if Cloudinary credentials are missing in production
+  if (ENV.NODE_ENV === 'production') {
+    if (!ENV.CLOUDINARY_CLOUD_NAME || !ENV.CLOUDINARY_API_KEY || !ENV.CLOUDINARY_API_SECRET) {
+      console.error('[FATAL] Missing required Cloudinary credentials in production.');
+      process.exit(1);
+    }
+  }
+
   await connectDB();
 
   // Wrap Express in a plain HTTP server so Socket.IO can share the port

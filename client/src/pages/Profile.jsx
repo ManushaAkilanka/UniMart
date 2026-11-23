@@ -44,7 +44,16 @@ const timeAgo = (date) => {
 
 export const Profile = () => {
   const navigate = useNavigate();
-  const { user: authUser, isAuthenticated, loading: authLoading, checkSession } = useAuth();
+  const { user: authUser, isAuthenticated, loading: authLoading, checkSession, logout } = useAuth();
+
+  const handleLogout = async () => {
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } catch (err) {
+      console.error('Logout error:', err);
+    }
+  };
 
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -238,19 +247,30 @@ export const Profile = () => {
     <div className="min-h-screen bg-surface pt-20">
       <div className="max-w-3xl mx-auto px-4 md:px-8 py-10">
         {/* Page header */}
-        <div className="flex items-center gap-3 mb-8">
-          <Link
-            to="/dashboard"
-            className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors"
-          >
-            <span className="material-symbols-outlined">arrow_back</span>
-          </Link>
-          <div>
-            <h1 className="font-headline-xl text-headline-xl text-on-surface">My Profile</h1>
-            <p className="font-body-sm text-body-sm text-on-surface-variant">
-              Manage your public student identity
-            </p>
+        <div className="flex items-center justify-between gap-4 mb-8">
+          <div className="flex items-center gap-3">
+            <Link
+              to="/dashboard"
+              className="p-2 rounded-lg text-on-surface-variant hover:bg-surface-container transition-colors"
+            >
+              <span className="material-symbols-outlined">arrow_back</span>
+            </Link>
+            <div>
+              <h1 className="font-headline-xl text-headline-xl text-on-surface">My Profile</h1>
+              <p className="font-body-sm text-body-sm text-on-surface-variant">
+                Manage your public student identity
+              </p>
+            </div>
           </div>
+
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl border border-error/30 text-error hover:bg-error-container/20 font-headline-sm text-headline-sm transition-colors cursor-pointer"
+          >
+            <span className="material-symbols-outlined text-base">logout</span>
+            <span>Sign Out</span>
+          </button>
         </div>
 
         {/* Success banner */}
@@ -347,7 +367,7 @@ export const Profile = () => {
                 </div>
 
                 {/* Links */}
-                <div className="mt-6 flex flex-wrap gap-3">
+                <div className="mt-6 flex flex-wrap items-center gap-3">
                   <Link
                     to="/my-listings"
                     className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-surface-container text-on-surface font-headline-sm text-headline-sm hover:bg-surface-container-high transition-colors"
@@ -362,6 +382,14 @@ export const Profile = () => {
                     <span className="material-symbols-outlined text-base">favorite</span>
                     Saved Items
                   </Link>
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-error/30 text-error hover:bg-error-container/20 font-headline-sm text-headline-sm transition-colors cursor-pointer sm:ml-auto"
+                  >
+                    <span className="material-symbols-outlined text-base">logout</span>
+                    Sign Out
+                  </button>
                 </div>
               </div>
             ) : (
