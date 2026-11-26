@@ -246,6 +246,22 @@ export function getAdminStats() {
   return request('/admin/stats');
 }
 
+function getAdminAnalytics(endpoint, params = {}) {
+  const qs = new URLSearchParams(
+    Object.fromEntries(Object.entries(params).filter(([, value]) => value !== '' && value != null))
+  ).toString();
+  return request(`/admin/analytics/${endpoint}${qs ? `?${qs}` : ''}`);
+}
+
+export const getAdminAnalyticsOverview = (params) => getAdminAnalytics('overview', params);
+export const getAdminAnalyticsTopListers = (params) => getAdminAnalytics('top-listers', params);
+export const getAdminAnalyticsTopSellers = (params) => getAdminAnalytics('top-sellers', params);
+export const getAdminAnalyticsEngagement = (params) => getAdminAnalytics('engagement', params);
+export const getAdminAnalyticsCategories = (params) => getAdminAnalytics('categories', params);
+export const getAdminAnalyticsCampusesFaculties = (params) =>
+  getAdminAnalytics('campuses-faculties', params);
+export const getAdminAnalyticsTrends = (params) => getAdminAnalytics('trends', params);
+
 /** GET /api/admin/reports */
 export function getAdminReports(params = {}) {
   const qs = new URLSearchParams(
@@ -389,4 +405,3 @@ export function resetPassword(token, newPassword) {
     body: JSON.stringify({ token, newPassword }),
   });
 }
-

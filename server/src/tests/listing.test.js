@@ -17,7 +17,9 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach, vi } from 'vites
 import request from 'supertest';
 import app from '../app.js';
 import { setupTestDB, teardownTestDB, clearCollections } from './helpers/testDB.js';
-import { User, Category, Listing } from '../models/index.js';
+import { User, Category, Listing, AuditLog } from '../models/index.js';
+import { ENV } from '../config/env.js';
+import { promoteAdmin } from '../scripts/promote-admin.js';
 
 // Mock the email service so no real emails are sent during tests
 vi.mock('../services/email.service.js', () => ({
@@ -832,6 +834,54 @@ describe('UniMart Listings Backend API', () => {
       expect(res.status).toBe(403);
       expect(res.body.code).toBe('ACCOUNT_PENDING_APPROVAL');
     });
+
+    it.each(['admin', 'moderator'])('%s listings are immediately active', async (role) => {
+      const previousDefaultStatus = ENV.DEFAULT_LISTING_STATUS;
+      try {
+        ENV.DEFAULT_LISTING_STATUS = 'pending';
+        await User.findByIdAndUpdate(userAId, {
+          role,
+          accountStatus: 'pending_approval',
+        });
+
+        const res = await request(app)
+          .post('/api/listings')
+          .set('Cookie', 'token=' + userAToken)
+          .send({
+            title: `${role} Test Listing`,
+            description: 'This privileged listing should be immediately active.',
+            categoryId: categoryAcademic._id.toString(),
+            listingType: 'sale',
+            price: 2500,
+            condition: 'used-good',
+            campus: 'University of Colombo',
+          });
+
+        expect(res.status).toBe(201);
+        expect(res.body.data.listing.status).toBe('active');
+      } finally {
+        ENV.DEFAULT_LISTING_STATUS = previousDefaultStatus;
+      }
+    });
+
+    it('promotes only an existing user and records a CLI audit log', async () => {
+      const user = await User.create({
+        fullName: 'Promotion Target',
+        email: 'promotion.target@sci.cmb.ac.lk',
+        passwordHash: 'unused-hash',
+        accountStatus: 'pending_approval',
+      });
+
+      const promoted = await promoteAdmin(user.email);
+      expect(promoted.role).toBe('admin');
+      expect(promoted.accountStatus).toBe('active');
+      expect(promoted.isVerified).toBe(true);
+      await expect(promoteAdmin('missing.user@sci.cmb.ac.lk')).rejects.toThrow('User not found.');
+
+      const audit = await AuditLog.findOne({ targetId: user._id, action: 'user.admin_promoted' });
+      expect(audit).not.toBeNull();
+      expect(audit.meta.source).toBe('cli');
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -885,4 +935,3 @@ describe('UniMart Listings Backend API', () => {
     });
   });
 });
-

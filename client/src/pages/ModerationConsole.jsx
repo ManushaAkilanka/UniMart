@@ -22,6 +22,7 @@ import {
   getAuditLog,
 } from '../utils/api';
 import { Modal } from '../components/ui/Modal';
+import { AnalyticsDashboard } from '../components/admin/AnalyticsDashboard';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function timeAgo(d) {
@@ -261,6 +262,7 @@ const TABS = [
   { id: 'verification', label: 'Verification', icon: 'verified_user' },
   { id: 'pending', label: 'Pending Accounts', icon: 'pending_actions' },
   { id: 'audit', label: 'Audit Log', icon: 'history' },
+  { id: 'analytics', label: 'Analytics', icon: 'query_stats' },
 ];
 
 export const ModerationConsole = () => {
@@ -505,7 +507,7 @@ export const ModerationConsole = () => {
 
       {/* Tab Nav */}
       <div className="flex items-center gap-1 bg-surface-container rounded-xl p-1 mb-space-md overflow-x-auto no-scrollbar">
-        {TABS.map((tab) => (
+        {TABS.filter((tab) => tab.id !== 'analytics' || isAdmin).map((tab) => (
           <button
             key={tab.id}
             type="button"
@@ -537,6 +539,8 @@ export const ModerationConsole = () => {
           </button>
         ))}
       </div>
+
+      {activeTab === 'analytics' && isAdmin && <AnalyticsDashboard />}
 
       {/* ── OVERVIEW TAB ─────────────────────────────────────────────────────── */}
       {activeTab === 'overview' && (

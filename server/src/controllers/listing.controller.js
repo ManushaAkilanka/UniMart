@@ -230,7 +230,9 @@ export const createListing = async (req, res, next) => {
       status,
     } = req.body;
 
-    const resolvedStatus = status || ENV.DEFAULT_LISTING_STATUS || 'active';
+    const resolvedStatus = ['admin', 'moderator'].includes(req.user.role)
+      ? 'active'
+      : status || ENV.DEFAULT_LISTING_STATUS || 'active';
 
     // Validate category existence
     let resolvedCategoryId = categoryId;
@@ -703,4 +705,3 @@ export const getSimilar = async (req, res, next) => {
     next(err);
   }
 };
-

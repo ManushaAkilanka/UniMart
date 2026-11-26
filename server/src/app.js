@@ -6,6 +6,7 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
 import { ENV } from './config/env.js';
+import { isAllowedOrigin } from './config/cors.js';
 import mongoSanitize from './middleware/mongoSanitize.js';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter.js';
 import apiRoutes from './routes/index.js';
@@ -44,21 +45,16 @@ app.use(
   })
 );
 
-const allowedOrigins = [
-  ENV.CLIENT_URL,
-  'http://localhost:5173',
-  'http://127.0.0.1:5173',
-].filter(Boolean);
-
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (e.g. mobile apps, curl, server-to-server) or matching allowed origins
-      if (!origin || allowedOrigins.includes(origin)) {
+      if (!origin || isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
-        const corsErr = new Error(`CORS policy: origin ${origin} not allowed.`);
+        const corsErr = new Error('Origin not allowed by CORS policy');
         corsErr.statusCode = 403;
+        corsErr.isCors = true;
         callback(corsErr);
       }
     },

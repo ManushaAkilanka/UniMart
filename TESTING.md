@@ -8,8 +8,8 @@ UniMart enforces a disciplined testing strategy designed to validate correctness
 
 | Metric | Status | Details |
 | :--- | :--- | :--- |
-| **Server Integration Suites** | **8 / 8 Passing (100%)** | `listing.test.js`, `favorites.test.js`, `auth.test.js`, `admin.test.js`, `conversation.test.js`, `socket.test.js`, `notification.test.js`, `security.test.js` |
-| **Total Server Test Cases** | **192 Passed / 0 Failed** | Zero flaky or skipped tests in execution |
+| **Server Integration Suites** | **9 / 9 Passing (100%)** | Includes the analytics suite alongside listing, favorites, auth, admin, conversation, socket, notification, and security suites |
+| **Total Server Test Cases** | **217 Passed / 0 Failed** | Verified with the current server test run |
 | **Client Production Build** | **Clean (Exit Code 0)** | Vite + React + Tailwind + PostCSS bundle verification |
 | **End-to-End Suite** | **Active (Playwright)** | Comprehensive browser workflows in `e2e/marketplace.spec.js` and `e2e/navbar.spec.js` |
 | **Database Isolation** | **100% Ephemeral** | `mongodb-memory-server` per-suite spun up and torn down in memory |
@@ -128,7 +128,7 @@ Tests event-driven notifications:
 - **Deduplication**: Suppresses redundant unread notifications when a user is already active in the chat room.
 - **State Updates**: Validates `markOneRead` and `markAllRead` operations.
 
-### 3.8 `src/tests/security.test.js` (12 Tests)
+### 3.8 `src/tests/security.test.js`
 Validates core HTTP infrastructure and dynamic attack resilience:
 - **NoSQL Sanitize (Unit & Middleware)**: Recursively strips keys starting with `$` or containing `.` from nested payload objects, `req.body`, and `req.query`.
 - **Helmet Security Headers**: Validates `X-Content-Type-Options: nosniff`, `X-Frame-Options: SAMEORIGIN`, and `Cross-Origin-Resource-Policy: cross-origin`.
@@ -138,6 +138,15 @@ Validates core HTTP infrastructure and dynamic attack resilience:
 - **File Upload Attack Defense**: Validates buffer magic byte signatures; rejects disguised executable scripts or text files claiming to be images.
 - **OAuth Open Redirect Defense**: Verifies callbacks redirect exclusively to whitelisted `CLIENT_URL`.
 - **Production Cookie Flags**: Confirms `secure: true`, `httpOnly: true`, and `sameSite: strict` in production mode.
+
+### 3.9 `src/tests/admin.analytics.test.js` (3 Tests)
+Validates analytics access control, strict query parsing, aggregation accuracy, and response privacy:
+- Unauthenticated requests receive `401`; moderators and ordinary users receive `403`.
+- Invalid ranges, limits above 25, and unknown query parameters receive `400`.
+- Small MongoDB fixtures verify overview counts, seller ranks, estimated sold value, sell-through, engagement, category mix, campus aggregates, and trend totals.
+- Analytics responses omit student IDs and credentials and mask seller emails.
+
+The authentication suite also completes a forgot-password/reset-password request using the LAN origin and checks that the mocked email link is built from `CLIENT_URL`. Listing tests cover pending-user blocking, privileged active listings, and promotion CLI audit/failure behavior.
 
 ---
 

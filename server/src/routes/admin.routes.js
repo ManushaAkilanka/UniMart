@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import { requireAuth, requireRole } from '../middleware/auth.middleware.js';
 import * as adminController from '../controllers/admin.controller.js';
+import * as adminAnalyticsController from '../controllers/adminAnalytics.controller.js';
 
 const router = Router();
 
@@ -44,5 +45,18 @@ router.patch('/users/:id/approve', adminController.approveAccount);
 
 // ── Audit Log ──────────────────────────────────────────────────────────────────
 router.get('/audit-log', adminController.getAuditLog);
+
+// ── Analytics (admins only) ──────────────────────────────────────────────────
+router.get('/analytics/overview', requireRole('admin'), adminAnalyticsController.getOverview);
+router.get('/analytics/top-listers', requireRole('admin'), adminAnalyticsController.getTopListers);
+router.get('/analytics/top-sellers', requireRole('admin'), adminAnalyticsController.getTopSellers);
+router.get('/analytics/engagement', requireRole('admin'), adminAnalyticsController.getEngagement);
+router.get('/analytics/categories', requireRole('admin'), adminAnalyticsController.getCategories);
+router.get(
+  '/analytics/campuses-faculties',
+  requireRole('admin'),
+  adminAnalyticsController.getCampusesAndFaculties
+);
+router.get('/analytics/trends', requireRole('admin'), adminAnalyticsController.getTrends);
 
 export default router;

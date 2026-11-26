@@ -2,6 +2,7 @@ import { Server } from 'socket.io';
 import jwt from 'jsonwebtoken';
 import { Conversation, Message, User } from '../models/index.js';
 import { ENV } from '../config/env.js';
+import { isAllowedOrigin } from '../config/cors.js';
 
 const OBJECT_ID_REGEX = /^[0-9a-fA-F]{24}$/;
 
@@ -93,7 +94,15 @@ export const socketAuthMiddleware = async (socket, next) => {
 export const initSocket = (httpServer) => {
   io = new Server(httpServer, {
     cors: {
-      origin: ENV.CLIENT_URL,
+      origin: (origin, callback) => {
+        if (!origin || isAllowedOrigin(origin)) {
+          callback(null, true);
+        } else {
+          const corsErr = new Error('Origin not allowed by CORS policy');
+          corsErr.isCors = true;
+          callback(corsErr);
+        }
+      },
       credentials: true,
     },
     transports: ['websocket', 'polling'],

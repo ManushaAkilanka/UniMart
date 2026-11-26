@@ -98,16 +98,61 @@ describe('Security & Dynamic Attack Resilience', () => {
       expect(res.headers['cross-origin-resource-policy']).toBe('cross-origin');
     });
 
-    it('returns a clean 403 JSON response when request origin is disallowed by CORS', async () => {
-      const res = await request(app)
-        .get('/api/health')
-        .set('Origin', 'http://malicious-attacker-domain.com');
+    it('allows private-network origins on the Vite port outside production', async () => {
+      const originalEnv = ENV.NODE_ENV;
+      try {
+        ENV.NODE_ENV = 'development';
 
-      expect(res.status).toBe(403);
-      expect(res.body.success).toBe(false);
-      expect(res.body.message).toContain('Origin not allowed by CORS policy');
-      expect(res.body.stack).toBeUndefined();
+        const res = await request(app)
+          .post('/api/health')
+          .set('Origin', 'http://192.168.8.124:5173');
+
+        expect(res.status).not.toBe(403);
+      } finally {
+        ENV.NODE_ENV = originalEnv;
+      }
     });
+
+    it('rejects private-network origins on the Vite port in production', async () => {
+      const originalEnv = ENV.NODE_ENV;
+      try {
+        ENV.NODE_ENV = 'production';
+
+        const res = await request(app)
+          .post('/api/health')
+          .set('Origin', 'http://192.168.8.124:5173');
+
+        expect(res.status).toBe(403);
+        expect(res.body).toEqual({
+          success: false,
+          message: 'Origin not allowed by CORS policy',
+        });
+      } finally {
+        ENV.NODE_ENV = originalEnv;
+      }
+    });
+
+    it.each(['development', 'production'])(
+      'returns a generic 403 JSON response without a stack for disallowed origins in %s',
+      async (nodeEnv) => {
+        const originalEnv = ENV.NODE_ENV;
+        try {
+          ENV.NODE_ENV = nodeEnv;
+
+          const res = await request(app)
+            .post('/api/health')
+            .set('Origin', 'https://evil.com');
+
+          expect(res.status).toBe(403);
+          expect(res.body).toEqual({
+            success: false,
+            message: 'Origin not allowed by CORS policy',
+          });
+        } finally {
+          ENV.NODE_ENV = originalEnv;
+        }
+      }
+    );
   });
 
   describe('Production Error Disclosure Guard', () => {

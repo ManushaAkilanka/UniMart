@@ -6,6 +6,10 @@ export const ENV = {
   PORT: process.env.PORT || 5000,
   NODE_ENV: process.env.NODE_ENV || 'development',
   CLIENT_URL: process.env.CLIENT_URL || 'http://localhost:5173',
+  ALLOWED_ORIGINS: (process.env.ALLOWED_ORIGINS || '')
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean),
   MONGO_URI: process.env.MONGO_URI || 'mongodb://localhost:27017/unimart',
   JWT_SECRET: process.env.JWT_SECRET || 'dev_secret_jwt_key_unimart',
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '7d',
@@ -39,13 +43,18 @@ export const ENV = {
   CLOUDINARY_API_KEY: process.env.CLOUDINARY_API_KEY || null,
   CLOUDINARY_API_SECRET: process.env.CLOUDINARY_API_SECRET || null,
 
-  // Admin moderation setting (default: active)
+  // Listing moderation setting (default: active)
   DEFAULT_LISTING_STATUS:
-    process.env.ADMIN_SETTING_LISTING_STATUS === 'pending' ||
-    process.env.ADMIN_SETTING_REQUIRE_APPROVAL === 'true' ||
-    process.env.REQUIRE_LISTING_APPROVAL === 'true'
+    (process.env.DEFAULT_LISTING_STATUS ??
+      process.env.ADMIN_SETTING_DEFAULT_STATUS ??
+      process.env.ADMIN_SETTING_LISTING_STATUS) === 'pending' ||
+    (process.env.DEFAULT_LISTING_STATUS === undefined &&
+      process.env.ADMIN_SETTING_DEFAULT_STATUS === undefined &&
+      process.env.ADMIN_SETTING_LISTING_STATUS === undefined &&
+      (process.env.ADMIN_SETTING_REQUIRE_APPROVAL === 'true' ||
+        process.env.REQUIRE_LISTING_APPROVAL === 'true'))
       ? 'pending'
-      : (process.env.ADMIN_SETTING_DEFAULT_STATUS || 'active'),
+      : 'active',
 
   // Notification email digest — set to 'false' to disable emails for listing_sold / report_resolved
   NOTIFICATIONS_EMAIL_ENABLED: process.env.NOTIFICATIONS_EMAIL_ENABLED !== 'false',

@@ -31,6 +31,8 @@ This document details the multi-layered defense-in-depth security model implemen
   - Account is provisioned with `accountStatus: 'pending_approval'`.
   - The `requireApproved` middleware blocks listing creation, free item claiming, and chat initiation (`403 ACCOUNT_PENDING_APPROVAL`).
   - Institutional campus administrators verify credentials via the Admin Moderation Console before promoting to `'active'`.
+- Admin and moderator roles bypass the pending-account gate; listing creation by either role is forced to `active`, regardless of the ordinary-user moderation default.
+- `server/src/scripts/promote-admin.js <email>` is a manual-only CLI operation. It updates role, approval status, and verification state and records a `user.admin_promoted` audit entry. It does not execute when imported and no HTTP self-promotion route exists.
 
 ### 1.4 Password Security & Hashing
 - Passwords are salted and hashed using `bcryptjs` with **12 salt rounds** in production and development (4 rounds in test environment for fast runner execution).
@@ -41,7 +43,7 @@ This document details the multi-layered defense-in-depth security model implemen
 
 ### 1.5 Forgot Password & Password Reset Security
 - **Anti-Enumeration Protection**: `POST /api/auth/forgot-password` returns the exact same generic success message whether the email exists or not. Timing equalisation via dummy bcrypt hashing is executed for non-existent accounts so response timing cannot be used to enumerate campus emails.
-- **Cryptographic Reset Tokens**: High-entropy 32-byte tokens (`crypto.randomBytes(32).toString('hex')`). Only the SHA-256 hash of the token is persisted in MongoDB (`passwordResetToken`) with a 30-minute expiry (`passwordResetExpiry`).
+- **Cryptographic Reset Tokens**: High-entropy 32-byte tokens (`crypto.randomBytes(32).toString('hex')`). Only the SHA-256 hash of the token is persisted in MongoDB (`passwordResetToken`) with a 15-minute expiry (`passwordResetExpiry`).
 - **Single-Use Enforcement**: Tokens are invalidated immediately upon first consumption. Requesting a new token invalidates any previously issued token for that account.
 - **OAuth & Suspended User Protection**: Accounts without a `passwordHash` (Google OAuth accounts) receive the generic response and no token is issued. Suspended accounts are barred from completing a password reset.
 - **Strict Endpoint Rate Limiting**: `POST /api/auth/forgot-password` is limited to 5 requests / 15 minutes; `POST /api/auth/reset-password` is limited to 10 attempts / 15 minutes.
@@ -64,6 +66,12 @@ UniMart implements discrete user tiers:
 - All mutating endpoints (`PATCH /api/listings/:id`, `DELETE /api/listings/:id`, `PATCH /api/users/me`) verify that `req.user._id` matches the document's `sellerId` or `userId`.
 - Unauthorized modification attempts immediately return `403 Forbidden` (`FORBIDDEN_OWNER_ONLY`).
 - Self-claim prevention: Users are programmatically blocked from claiming their own free listings or starting negotiations with themselves.
+
+### 2.3 Admin Analytics
+- Analytics endpoints (`GET /api/admin/analytics/*`) require both authentication and the `admin` role; moderators and ordinary users receive `403`, and unauthenticated requests receive `401`.
+- Query parameters are restricted by a strict Zod schema to `range` (`7d`, `30d`, `90d`, `all`), `limit` (1–25), `campus`, and `category`.
+- Mongo aggregation response projections expose only seller name, faculty, campus, and masked email (`a***@domain`). They do not project student IDs, password hashes, OAuth IDs, verification/reset tokens, or other credential fields.
+- The product does not process payments. “Estimated value sold” is the sum of listed prices for listings marked sold; it is self-reported and unverified, not revenue. Sold-date trend buckets use `updatedAt` because a dedicated sold timestamp is not stored.
 
 ---
 
@@ -118,10 +126,13 @@ Campus listings and profile avatars accept image uploads through a strictly cont
   - `Cross-Origin-Resource-Policy: cross-origin`
 
 ### 5.2 Cross-Origin Resource Sharing (CORS)
-- Origin whitelist in `app.js`:
+- HTTP and Socket.IO use the same exact-origin allowlist:
   - `ENV.CLIENT_URL` (defaults to `http://localhost:5173`)
+  - Comma-separated exact origins from optional `ALLOWED_ORIGINS`
   - `http://localhost:5173`
   - `http://127.0.0.1:5173`
+- Outside production only, HTTP origins matching private IPv4 addresses on exact port `5173` over `http` are additionally allowed: `192.168.x.x`, `10.x.x.x`, and `172.16.x.x` through `172.31.x.x`. This is a strict regex match, not a wildcard; production never gets this LAN allowance.
+- Password reset email URLs are based on `CLIENT_URL`; set it to the client origin reachable from the testing device.
 - `credentials: true` restricted strictly to whitelisted origins.
 - **Clean 403 Forbidden Response**: Unauthorized origins are intercepted and return a clean HTTP `403 Forbidden` with `{ "success": false, "message": "Origin not allowed by CORS policy" }`, suppressing internal stack traces and server details.
 

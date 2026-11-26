@@ -15,6 +15,8 @@ import request from 'supertest';
 import app from '../app.js';
 import { setupTestDB, teardownTestDB, clearCollections } from './helpers/testDB.js';
 import { User } from '../models/index.js';
+import { ENV } from '../config/env.js';
+import { sendPasswordResetEmail } from '../services/email.service.js';
 
 // ── Mock the email service so no real emails are sent ─────────────────────────
 vi.mock('../services/email.service.js', () => ({
@@ -584,6 +586,35 @@ describe('Forgot Password & Reset Password Flow', () => {
   });
 
   describe('POST /api/auth/forgot-password', () => {
+    it('completes a LAN-origin reset flow and builds the email link from CLIENT_URL', async () => {
+      const originalClientUrl = ENV.CLIENT_URL;
+      try {
+        ENV.CLIENT_URL = 'http://192.168.8.124:5173';
+        sendPasswordResetEmail.mockClear();
+        await request(app).post('/api/auth/register').send(testStudent);
+
+        const requestReset = await request(app)
+          .post('/api/auth/forgot-password')
+          .set('Origin', 'http://192.168.8.124:5173')
+          .send({ email: testStudent.email });
+
+        expect(requestReset.status).toBe(200);
+        const resetUrl = sendPasswordResetEmail.mock.calls[0][1];
+        expect(resetUrl).toMatch(/^http:\/\/192\.168\.8\.124:5173\/reset-password\?token=/);
+
+        const token = new URL(resetUrl).searchParams.get('token');
+        const finishReset = await request(app)
+          .post('/api/auth/reset-password')
+          .set('Origin', 'http://192.168.8.124:5173')
+          .send({ token, newPassword: 'NewSecurePass2' });
+
+        expect(finishReset.status).toBe(200);
+        expect(finishReset.body.success).toBe(true);
+      } finally {
+        ENV.CLIENT_URL = originalClientUrl;
+      }
+    });
+
     it('✅ returns generic success message for a registered university account and stores hashed token', async () => {
       // 1. Register student
       await request(app).post('/api/auth/register').send(testStudent);
@@ -850,5 +881,3 @@ describe('Forgot Password & Reset Password Flow', () => {
     });
   });
 });
-
-
