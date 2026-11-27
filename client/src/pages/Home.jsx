@@ -8,10 +8,10 @@ import { useAuth } from '../context/AuthContext';
 const STATIC_CATEGORIES = [
   { slug: 'academic-gear', label: 'Academic', sub: 'Books & Calc', icon: 'menu_book' },
   { slug: 'electronics-laptops', label: 'Electronics', sub: 'Laptops, Audio', icon: 'devices' },
-  { slug: 'hostel-dorm', label: 'Hostel Gear', sub: 'Desks, Lamps', icon: 'bed' },
-  { slug: 'transport', label: 'Transport', sub: 'Cycles, Gear', icon: 'directions_bike' },
-  { slug: 'apparel', label: 'Apparel', sub: 'Lab Coats, Bags', icon: 'styler' },
-  { slug: 'sports-leisure', label: 'Sports & Fun', sub: 'Guitars, Gear', icon: 'sports_cricket' },
+  { slug: 'hostel-dorm-living', label: 'Hostel Gear', sub: 'Desks, Lamps', icon: 'bed' },
+  { slug: 'bicycle-transport', label: 'Transport', sub: 'Cycles, Gear', icon: 'directions_bike' },
+  { slug: 'uni-merch-fashion', label: 'Apparel', sub: 'Campus Wear', icon: 'styler' },
+  { slug: 'medical-healthcare', label: 'Medical', sub: 'Health & Care', icon: 'medical_services' },
   { slug: 'free', label: 'Free Pool', sub: '100% Free', icon: 'volunteer_activism', highlight: true },
   { slug: 'wanted', label: 'Wanted', sub: 'Student Board', icon: 'campaign' },
 ];

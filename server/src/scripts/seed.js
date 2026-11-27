@@ -3,7 +3,7 @@
  * Usage: node src/scripts/seed.js
  *
  * Seeds:
- *  - 6 Core categories
+ *  - 10 University marketplace categories
  *  - 1 Admin user
  *  - 3 Verified student sellers
  *  - 30 Realistic campus marketplace listings matching design specs
@@ -14,52 +14,7 @@ import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { ENV } from '../config/env.js';
 import { Category, User, Listing } from '../models/index.js';
-
-// ── Categories ────────────────────────────────────────────────────────────────
-const CATEGORIES = [
-  {
-    name: 'Academic Gear',
-    slug: 'academic-gear',
-    description: 'Textbooks, stationery, lab equipment, and study materials',
-    icon: 'school',
-    sortOrder: 1,
-  },
-  {
-    name: 'Electronics & Laptops',
-    slug: 'electronics-laptops',
-    description: 'Laptops, tablets, phones, calculators, and tech accessories',
-    icon: 'laptop_mac',
-    sortOrder: 2,
-  },
-  {
-    name: 'Hostel & Dorm Living',
-    slug: 'hostel-dorm-living',
-    description: 'Bedding, kitchenware, appliances, and room essentials',
-    icon: 'bed',
-    sortOrder: 3,
-  },
-  {
-    name: 'Bicycle & Transport',
-    slug: 'bicycle-transport',
-    description: 'Bicycles, scooters, helmets, and campus transport gear',
-    icon: 'directions_bike',
-    sortOrder: 4,
-  },
-  {
-    name: 'Uni Merch & Fashion',
-    slug: 'uni-merch-fashion',
-    description: 'University merchandise, clothing, accessories, and gear',
-    icon: 'apparel',
-    sortOrder: 5,
-  },
-  {
-    name: 'Sports & Fitness',
-    slug: 'sports-fitness',
-    description: 'Sports equipment, gym gear, outdoor apparel, and fitness tools',
-    icon: 'fitness_center',
-    sortOrder: 6,
-  },
-];
+import { CATEGORY_CATALOG as CATEGORIES } from '../config/categoryCatalog.js';
 
 // ── Student Sellers ───────────────────────────────────────────────────────────
 const SAMPLE_STUDENTS = [
@@ -745,7 +700,7 @@ export async function seedData() {
     console.log(`  [${count}/${LISTINGS_TEMPLATE.length}] ✅ ${item.title.substring(0, 48)}… (${item.listingType})`);
   }
 
-  console.log(`\n[Seed] 🎉 Successfully seeded ${count} listings, 6 categories, and ${SAMPLE_STUDENTS.length + 1} users.\n`);
+  console.log(`\n[Seed] 🎉 Successfully seeded ${count} listings, ${CATEGORIES.length} categories, and ${SAMPLE_STUDENTS.length + 1} users.\n`);
 }
 
 const isCLI = process.argv[1] && (process.argv[1].endsWith('seed.js') || process.argv[1].endsWith('seed'));

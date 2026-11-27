@@ -8,8 +8,8 @@ UniMart enforces a disciplined testing strategy designed to validate correctness
 
 | Metric | Status | Details |
 | :--- | :--- | :--- |
-| **Server Integration Suites** | **9 / 9 Passing (100%)** | Includes the analytics suite alongside listing, favorites, auth, admin, conversation, socket, notification, and security suites |
-| **Total Server Test Cases** | **217 Passed / 0 Failed** | Verified with the current server test run |
+| **Server Integration Suites** | **11 / 11 Passing (100%)** | Includes analytics, student account approval, and category catalog suites alongside marketplace, auth, moderation, socket, and security suites |
+| **Total Server Test Cases** | **220 Passed / 0 Failed** | Verified with the current server test run |
 | **Client Production Build** | **Clean (Exit Code 0)** | Vite + React + Tailwind + PostCSS bundle verification |
 | **End-to-End Suite** | **Active (Playwright)** | Comprehensive browser workflows in `e2e/marketplace.spec.js` and `e2e/navbar.spec.js` |
 | **Database Isolation** | **100% Ephemeral** | `mongodb-memory-server` per-suite spun up and torn down in memory |
@@ -39,7 +39,7 @@ UniMart enforces a disciplined testing strategy designed to validate correctness
 
 ## 3. Server Integration Test Suites Breakdown
 
-### 3.1 `src/tests/listing.test.js` (41 Tests)
+### 3.1 `src/tests/listing.test.js` (44 Tests)
 Validates core marketplace catalog operations, validation rules, permissions, and recommendation systems:
 - **Category & Facet Pipeline**: Retrieves active categories ordered by `sortOrder`; computes dynamic category and condition facet counts.
 - **Listing Creation**:
@@ -81,7 +81,7 @@ Validates user interaction, saved items, and user profile management:
   - Validates image magic bytes; rejects invalid file buffers.
   - Updates `avatarUrl` in user profile upon successful Cloudinary upload.
 
-### 3.3 `src/tests/auth.test.js` (44 Tests)
+### 3.3 `src/tests/auth.test.js` (45 Tests)
 Validates identity verification, session cookies, password reset, and institutional policies:
 - **Institutional Email Validation**: Restricts direct registration strictly to verified Sri Lankan university domains (`@*.ac.lk`).
 - **OTP Verification Flow**: Issues time-limited 6-digit OTP codes; tests valid code acceptance, expired code rejection, and wrong code handling.
@@ -147,6 +147,12 @@ Validates analytics access control, strict query parsing, aggregation accuracy, 
 - Analytics responses omit student IDs and credentials and mask seller emails.
 
 The authentication suite also completes a forgot-password/reset-password request using the LAN origin and checks that the mocked email link is built from `CLIENT_URL`. Listing tests cover pending-user blocking, privileged active listings, and promotion CLI audit/failure behavior.
+
+### 3.10 `src/tests/account-approval.test.js` (2 Tests)
+Checks that manual CLI approval activates and verifies only the selected student, records an audit event, and refuses unknown, non-student, or suspended accounts.
+
+### 3.11 `src/tests/category-catalog.test.js` (1 Test)
+Checks that the public categories API exposes the 10-category catalog, including Medical & Healthcare and the student-focused additions, and that repeated catalog setup does not create duplicates.
 
 ---
 

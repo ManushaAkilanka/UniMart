@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import { ENV } from './env.js';
 import { Category } from '../models/index.js';
 import { seedData } from '../scripts/seed.js';
+import { ensureDefaultCategories } from './categoryCatalog.js';
 
 // Ensure reliable DNS resolution for MongoDB Atlas SRV records
 // (Prevents querySrv ECONNREFUSED on local routers/ISPs that do not resolve SRV records)
@@ -26,6 +27,14 @@ const ensureSeedData = async () => {
   }
 };
 
+const ensureCategories = async () => {
+  try {
+    await ensureDefaultCategories();
+  } catch (error) {
+    console.warn('[MongoDB] Default category setup warning:', error.message);
+  }
+};
+
 export const connectDB = async () => {
   try {
     const conn = await mongoose.connect(ENV.MONGO_URI, {
@@ -33,6 +42,7 @@ export const connectDB = async () => {
     });
     console.log(`[MongoDB] Connected successfully: ${conn.connection.host}`);
     await ensureSeedData();
+    await ensureCategories();
     return conn;
   } catch (error) {
     if (ENV.NODE_ENV !== 'production') {
@@ -46,6 +56,7 @@ export const connectDB = async () => {
         const conn = await mongoose.connect(memUri);
         console.log(`[MongoDB] In-memory MongoDB connected successfully at ${memUri}`);
         await ensureSeedData();
+        await ensureCategories();
         return conn;
       } catch (memErr) {
         console.error('[MongoDB] Failed to start in-memory database:', memErr.message);
