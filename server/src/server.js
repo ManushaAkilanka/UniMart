@@ -17,7 +17,7 @@ const startServer = async () => {
 
   // Wrap Express in a plain HTTP server so Socket.IO can share the port
   const httpServer = createServer(app);
-
+  //this is a comment i use it to enhcnce my code readability and to make sure that i understand the code better
   // Boot Socket.IO (auth middleware runs DB queries, so must come after connectDB)
   initSocket(httpServer);
 
