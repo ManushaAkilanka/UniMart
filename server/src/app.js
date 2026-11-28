@@ -11,7 +11,7 @@ import mongoSanitize from './middleware/mongoSanitize.js';
 import { authLimiter, apiLimiter } from './middleware/rateLimiter.js';
 import apiRoutes from './routes/index.js';
 import { notFoundHandler, errorHandler } from './middleware/errorHandler.js';
-
+// those are important middlewares that help to secure the application and prevent common web vulnerabilities. They are used to sanitize user input, limit the number of requests to prevent abuse, and handle errors gracefully.
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const UPLOADS_DIR = path.resolve(__dirname, '../uploads');
@@ -52,7 +52,7 @@ app.use(
       if (!origin || isAllowedOrigin(origin)) {
         callback(null, true);
       } else {
-        const corsErr = new Error('Origin not allowed by CORS policy');
+        const corsErr = new Error('Origin not allowed by CORS policy'); // Create a new error object for CORS errors
         corsErr.statusCode = 403;
         corsErr.isCors = true;
         callback(corsErr);
