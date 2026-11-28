@@ -1,7 +1,7 @@
 import js from '@eslint/js';
 import globals from 'globals';
 import pluginSecurity from 'eslint-plugin-security';
-
+// This is the ESLint configuration file for the server-side code. It sets up the linting rules and environment settings to ensure code quality and security best practices are followed.
 export default [
   js.configs.recommended,
   pluginSecurity.configs.recommended,
